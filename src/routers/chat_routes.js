@@ -11,7 +11,7 @@ router.get('/chat', fetchChats);
 router.post('/message', sendMessage);
 router.post('/file', sendFileMessage);
 router.post('/audio', sendAudioMessage);
-router.put('/message/:messageId', editMessage);
+router.patch('/message/:messageId', editMessage);
 router.delete('/message/:messageId', deleteMessage);
 router.get('/:chatId/chat', fetchMessages);
 router.patch('/:chatId/read', markChatAsRead);

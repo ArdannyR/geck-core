@@ -7,10 +7,10 @@ router.use(verifyAuth);
 
 router.get('/profile', getProfile);
 router.patch('/update-password', updatePassword);
-router.put('/profile/:id', updateProfile);
+router.patch('/profile/:id', updateProfile);
 router.patch('/preferences', updatePreferences);
 router.delete('/delete-account', deleteAccount);
 router.get('/search', searchUsers); 
-router.put('/update-push-token', updatePushToken); // falta probar
+router.patch('/update-push-token', updatePushToken); 
 
 export default router;
