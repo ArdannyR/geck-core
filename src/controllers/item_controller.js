@@ -258,29 +258,35 @@ export const updateItem = async (req, res) => {
   try {
     const userId = req.user._id;
     const { id } = req.params;
-    const { name, x, y, email, permission } = req.body;
+    const { name, x, y, content, email, permission } = req.body;
 
     const item = await Item.findById(id);
     if (!item) return res.status(404).json({ ok: false, msg: 'Ítem no encontrado' });
 
+    // 1. Validar Permisos Generales
     const isOwner = String(item.userId) === String(userId);
-    const isShared = item.sharedWith.some(s => String(s.userId) === String(userId));
+    const sharedUser = item.sharedWith.find(s => String(s.userId) === String(userId));
+    const hasEditPermission = sharedUser && sharedUser.permission === 'edit';
 
-    // Renombrar (solo propietario)
-    if (name !== undefined) {
-      if (!isOwner) return res.status(403).json({ ok: false, msg: 'No tienes permiso para renombrar este ítem' });
-      if (!String(name).trim()) return res.status(400).json({ ok: false, msg: 'El nombre no puede estar vacío' });
-      item.name = String(name).trim();
+    if (!isOwner && !hasEditPermission) {
+      return res.status(403).json({ ok: false, msg: 'No tienes permiso para modificar este ítem' });
     }
 
-    // Mover posición
-    if (x !== undefined || y !== undefined) {
-      if (!isOwner && !isShared) return res.status(403).json({ ok: false, msg: 'No tienes permiso para mover esto' });
+    let isUpdated = false;
 
+    // 2. Renombrar
+    if (name && String(name).trim() !== '') {
+      item.name = String(name).trim();
+      isUpdated = true;
+    }
+
+    // 3. Mover (Coordenadas)
+    if (x !== undefined || y !== undefined) {
       if (isOwner) {
         if (x !== undefined) item.position.x = Number(x);
         if (y !== undefined) item.position.y = Number(y);
       } else {
+        // Lógica para que los invitados guarden su propia vista de la posición
         const guestPosIndex = item.guestPositions.findIndex(gp => String(gp.userId) === String(userId));
         if (guestPosIndex >= 0) {
           if (x !== undefined) item.guestPositions[guestPosIndex].x = Number(x);
@@ -293,54 +299,78 @@ export const updateItem = async (req, res) => {
           });
         }
       }
+      isUpdated = true;
     }
 
-    // Compartir (solo propietario)
-    if (email !== undefined || permission !== undefined) {
-      if (!isOwner) return res.status(403).json({ ok: false, msg: 'No puedes compartir este ítem (no eres propietario)' });
-      if (!email) return res.status(400).json({ msg: 'Email requerido' });
-      if (!permission || !['read', 'edit'].includes(permission)) return res.status(400).json({ msg: 'Permiso inválido (read/edit)' });
+    // 4. Actualizar Contenido (Notas/Código)
+    if (content !== undefined) {
+      item.content = content;
+      isUpdated = true;
+    }
 
+    // 5. Compartir (Solo el dueño puede invitar a otros)
+    let newInvitedUser = null;
+    if (email && permission) {
+      if (!isOwner) {
+        return res.status(403).json({ ok: false, msg: 'Solo el propietario puede compartir este ítem' });
+      }
+      if (!['read', 'edit'].includes(permission)) {
+        return res.status(400).json({ ok: false, msg: 'Permiso inválido (debe ser read o edit)' });
+      }
+
+      // 👇 AQUÍ ESTÁ LA CORRECCIÓN DEL ERROR "invitedUser is not defined" 👇
       const invitedUser = await User.findOne({ email });
-      if (!invitedUser) return res.status(404).json({ msg: 'Usuario invitado no existe' });
-      if (String(invitedUser._id) === String(userId)) return res.status(400).json({ msg: 'No puedes compartir contigo mismo' });
+      if (!invitedUser) {
+        return res.status(404).json({ ok: false, msg: `El usuario con correo ${email} no existe` });
+      }
+      if (String(invitedUser._id) === String(userId)) {
+        return res.status(400).json({ ok: false, msg: 'No puedes compartir contigo mismo' });
+      }
 
       const index = item.sharedWith.findIndex(s => String(s.userId) === String(invitedUser._id));
-      if (index >= 0) item.sharedWith[index].permission = permission;
-      else item.sharedWith.push({ userId: invitedUser._id, permission });
+      if (index >= 0) {
+        item.sharedWith[index].permission = permission; // Actualiza el permiso si ya existía
+      } else {
+        item.sharedWith.push({ userId: invitedUser._id, permission }); // Lo agrega si es nuevo
+      }
+      
+      newInvitedUser = invitedUser;
+      isUpdated = true;
     }
 
-    await item.save();
+    // Guardar si hubo algún cambio
+    if (isUpdated) {
+      await item.save();
+    }
 
+    // 6. Emitir por Sockets para el Tiempo Real
     const io = req.app.get('io');
     if (io) {
-      if (name !== undefined) {
-        const payload = { id: item._id, name: item.name, parentId: item.parentId, position: item.position, type: item.type };
-        io.to(`user:${userId}`).emit('item-renamed', payload);
+      // Evento general de actualización
+      const payload = { id: item._id, name: item.name, position: item.position, type: item.type };
+      if (item.workspaceId) {
+        io.to(`workspace:${item.workspaceId}`).emit('item-updated', payload);
+      } else {
+        io.to(`user:${item.userId}`).emit('item-updated', payload);
         if (item.sharedWith?.length) {
-          item.sharedWith.forEach(s => io.to(`user:${s.userId}`).emit('item-renamed', payload));
+          item.sharedWith.forEach(s => io.to(`user:${s.userId}`).emit('item-updated', payload));
         }
       }
 
-      if (x !== undefined || y !== undefined) {
-        const payload = { id: item._id, position: { x: item.position.x, y: item.position.y } };
-        if (item.workspaceId) {
-          io.to(`workspace:${item.workspaceId}`).emit('item-moved', payload);
-        } else {
-          io.to(`user:${item.userId}`).emit('item-moved', payload);
-          if (item.guestPositions && item.guestPositions.length > 0) {
-            item.guestPositions.forEach(guest => io.to(`user:${guest.userId}`).emit('item-moved', payload));
-          }
-        }
-      }
-
-      if (email !== undefined) {
-        io.to(`user:${invitedUser._id}`).emit('item-shared', item);
+      // Evento específico para notificar al nuevo usuario invitado
+      if (newInvitedUser) {
+        io.to(`user:${newInvitedUser._id}`).emit('item-shared', item);
       }
     }
 
-    return res.status(200).json({ ok: true, msg: 'Ítem actualizado correctamente', item });
+    return res.status(200).json({ 
+      ok: true, 
+      msg: 'Ítem actualizado correctamente', 
+      item 
+    });
+
   } catch (error) {
+    console.error('Error en updateItem:', error);
     return res.status(500).json({ ok: false, msg: `Error en el servidor - ${error.message}` });
   }
 };
