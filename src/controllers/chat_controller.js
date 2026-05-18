@@ -139,6 +139,13 @@ export const sendAudioMessage = async (req, res) => {
 
     const file = req.files.audio;
 
+    if (!file.mimetype.startsWith('audio/') && !file.mimetype.includes('mp4')) {
+      return res.status(400).json({ 
+        ok: false, 
+        msg: 'El archivo enviado no es un formato de audio válido' 
+      });
+    }
+
     const { secure_url, public_id } = await uploadFileToCloudinary(file.tempFilePath, 'GeckChat_Audios');
 
     const newMessage = await Message.create({

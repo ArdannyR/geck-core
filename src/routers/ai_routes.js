@@ -6,8 +6,8 @@ const router = Router();
 router.use(verifyAuth);
 
 router.post('/chat', chatWithAssistant);
-router.post('/semantic-search', semanticSearch);
 router.post('/generate-wallpaper', generateWallpaper);
+router.post('/semantic-search', semanticSearch);
 router.post('/improve-text', improveText);
 
 export default router;
