@@ -7,8 +7,8 @@ router.get('/accept-invite/:token', acceptInvite);
 
 router.use(verifyAuth);
 
-router.post('/', createWorkspace);
-router.get('/', fetchUserWorkspaces);
+router.post('/create', createWorkspace);
+router.get('/fetch-user-workspaces', fetchUserWorkspaces);
 router.post('/invite', inviteMember);
 router.delete('/:id/leave', leaveWorkspace);
 

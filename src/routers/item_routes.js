@@ -7,14 +7,14 @@ router.use(verifyAuth);
 
 router.get('/desktop', getDesktop);
 router.get('/all', getAllItems);
-router.get('/:id', getItemById);
-router.post('/', createItem);
+router.get('/get/:id', getItemById); 
+router.post('/create', createItem);
 router.post('/upload', uploadFileItem);
-router.patch('/:id/rename', renameItem);
-router.patch('/:id/move', moveItem);
+router.patch('/rename/:id', renameItem);
+router.patch('/move/:id', moveItem);
 router.patch('/positions/bulk', updateBulkPositions);
 router.put('/files/:id', updateTextContent);
-router.delete('/:id', deleteItem);
+router.delete('/delete/:id', deleteItem);
 router.post('/share/:id', shareItem);
 
 export default router;

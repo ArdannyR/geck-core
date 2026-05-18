@@ -5,9 +5,9 @@ import { verifyAuth } from '../middlewares/auth.js';
 const router = Router();
 router.use(verifyAuth);
 
-router.post('/improve-text', improveText);
 router.post('/chat', chatWithAssistant);
 router.post('/semantic-search', semanticSearch);
 router.post('/generate-wallpaper', generateWallpaper);
+router.post('/improve-text', improveText);
 
 export default router;
