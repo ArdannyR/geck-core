@@ -164,8 +164,18 @@ export const uploadFileItem = async (req, res) => {
 export const getItemById = async (req, res) => {
   try {
     const { id } = req.params;
+    const userId = req.user._id;
+
     const item = await Item.findById(id);
     if (!item) return res.status(404).json({ ok: false, msg: 'Ítem no encontrado' });
+
+    const isOwner = String(item.userId) === String(userId);
+    const isShared = item.sharedWith.some(s => String(s.userId) === String(userId));
+
+    if (!isOwner && !isShared) {
+      return res.status(403).json({ ok: false, msg: 'No tienes permisos para leer este archivo' });
+    }
+
     return res.status(200).json({ ok: true, item });
   } catch (error) {
     return res.status(500).json({ ok: false, msg: error.message });

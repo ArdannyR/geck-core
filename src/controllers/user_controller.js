@@ -45,7 +45,7 @@ export const updatePassword = async (req, res) => {
 
 export const updateProfile = async (req, res) => {
   try {
-    const { id } = req.params;
+    const id = req.user._id; 
     const { nombre, name, email } = req.body;
     const finalName = nombre || name;
 
