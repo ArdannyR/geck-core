@@ -6,12 +6,12 @@ const router = Router();
 router.use(verifyAuth);
 
 router.get('/desktop', getDesktop);
-router.get('/all', getAllItems);
-router.get('/get/:id', getItemById); 
 router.post('/create', createItem);
 router.post('/upload', uploadFileItem);
-router.patch('/update/:id', updateItem); 
+router.get('/get/:id', getItemById); // falta probar
+router.patch('/update/:id', updateItem); // falta probar
 router.patch('/positions/bulk', updateBulkPositions);
 router.delete('/delete/:id', deleteItem);
+router.get('/all', getAllItems);
 
 export default router;

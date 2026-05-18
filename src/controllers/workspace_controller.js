@@ -105,7 +105,9 @@ export const inviteMember = async (req, res) => {
 
     return res.status(200).json({
       ok: true,
-      msg: `Invitación enviada a ${email}. El usuario recibirá un correo para unirse.`
+      token: inviteToken,
+      msg: `Invitación enviada a ${email}. El usuario recibirá un correo para unirse. `
+
     });
   } catch (error) {
     console.error('Error en inviteMember:', error);
