@@ -5,7 +5,7 @@ import { uploadFileToCloudinary } from '../helpers/cloudinary.js';
 import { v2 as cloudinary } from 'cloudinary';
 import mongoose from 'mongoose';
 
-// 7 endpoints: getProfile, updatePassword, updateProfile, updatePreferences, updateImage, deleteAccount, searchUsers
+// 6 endpoints: getProfile, updatePassword, updateProfile, updatePreferences, deleteAccount, searchUsers
 export const getProfile = (req, res) => {
   const user = req.user;
 
@@ -77,88 +77,67 @@ export const updateProfile = async (req, res) => {
 export const updatePreferences = async (req, res) => {
   try {
     const userId = req.user._id;
-    const { theme, wallpaperUrl, accent } = req.body;
-
-    if (theme && !['light', 'dark'].includes(theme)) {
-      return res.status(400).json({ ok: false, msg: 'Theme inválido (light/dark)' });
-    }
+    // Recibimos los datos de texto (si los envían)
+    const { theme, accent } = req.body;
 
     const userDB = await User.findById(userId);
     if (!userDB) return res.status(404).json({ ok: false, msg: 'Usuario no encontrado' });
-    if (theme) userDB.preferences.theme = theme;
-    if (accent) userDB.preferences.accent = accent;
-    if (wallpaperUrl !== undefined) userDB.preferences.wallpaperUrl = wallpaperUrl;
 
+    // 1. Actualizar campos de texto
+    if (theme && ['light', 'dark'].includes(theme)) userDB.preferences.theme = theme;
+    if (accent) userDB.preferences.accent = accent;
+
+    // 2. Procesar archivos si vienen en la petición (form-data)
+    if (req.files) {
+      
+      // Si el frontend envió un avatar
+      if (req.files.avatar) {
+        // Borramos el anterior de Cloudinary si existe para no acumular basura
+        if (userDB.avatarPublicId) {
+          await cloudinary.uploader.destroy(userDB.avatarPublicId).catch(() => {});
+        }
+        // Subimos el nuevo
+        const { secure_url, public_id } = await uploadFileToCloudinary(req.files.avatar.tempFilePath, 'VirtualDesk_Avatars');
+        userDB.avatarUrl = secure_url; // Aquí guardamos la URL correcta
+        userDB.avatarPublicId = public_id;
+      }
+
+      // Si el frontend envió un wallpaper
+      if (req.files.wallpaper) {
+        if (userDB.preferences.wallpaperPublicId) {
+          await cloudinary.uploader.destroy(userDB.preferences.wallpaperPublicId).catch(() => {});
+        }
+        const { secure_url, public_id } = await uploadFileToCloudinary(req.files.wallpaper.tempFilePath, 'VirtualDesk_Wallpapers');
+        userDB.preferences.wallpaperUrl = secure_url; // Aquí guardamos la URL correcta
+        userDB.preferences.wallpaperPublicId = public_id;
+      }
+    }
+
+    // Guardamos todos los cambios de una sola vez
     await userDB.save();
 
+    // Opcional: Emitir por sockets si tienes tiempo real
     const io = req.app.get('io');
     if (io) {
       io.to(`user:${userId}`).emit('preferences-updated', {
         theme: userDB.preferences.theme,
         accent: userDB.preferences.accent,
-        wallpaperUrl: userDB.preferences.wallpaperUrl
+        wallpaperUrl: userDB.preferences.wallpaperUrl,
+        avatarUrl: userDB.avatarUrl
       });
     }
 
-    return res.status(200).json({ ok: true, msg: 'Preferencias actualizadas', preferences: userDB.preferences });
+    // Enviamos la respuesta incluyendo el avatar para que puedas verlo en Postman
+    return res.status(200).json({ 
+      ok: true, 
+      msg: 'Preferencias e imágenes actualizadas correctamente', 
+      preferences: userDB.preferences,
+      avatarUrl: userDB.avatarUrl 
+    });
+
   } catch (error) {
     console.error('Error en updatePreferences:', error);
     return res.status(500).json({ ok: false, msg: `Error en el servidor - ${error.message}` });
-  }
-};
-
-export const updateImage = async (req, res) => {
-  try {
-    const userId = req.user._id;
-    const { type = 'wallpaper' } = req.body;
-
-    if (!req.files || !req.files.image) {
-      return res.status(400).json({ ok: false, msg: "Debes enviar un archivo en el campo 'image'" });
-    }
-
-    const file = req.files.image;
-
-    if (!file.tempFilePath) {
-      return res.status(400).json({ ok: false, msg: 'Error al procesar el archivo temporal' });
-    }
-
-    const userDB = await User.findById(userId);
-    if (!userDB) return res.status(404).json({ ok: false, msg: 'Usuario no encontrado' });
-
-    if (type === 'wallpaper' && userDB.preferences?.wallpaperPublicId) {
-      await cloudinary.uploader.destroy(userDB.preferences.wallpaperPublicId).catch(() => {});
-    } else if (type === 'avatar' && userDB.avatarPublicId) {
-      await cloudinary.uploader.destroy(userDB.avatarPublicId).catch(() => {});
-    }
-
-    const folderName = type === 'avatar' ? 'VirtualDesk_Avatars' : 'VirtualDesk';
-    const { secure_url, public_id } = await uploadFileToCloudinary(file.tempFilePath, folderName);
-
-    if (type === 'wallpaper') {
-      await User.findByIdAndUpdate(userId, {
-        $set: {
-          'preferences.wallpaperUrl': secure_url,
-          'preferences.wallpaperPublicId': public_id
-        }
-      });
-    } else {
-      await User.findByIdAndUpdate(userId, {
-        $set: {
-          avatarUrl: secure_url,
-          avatarPublicId: public_id
-        }
-      });
-    }
-
-    return res.status(200).json({
-      ok: true,
-      msg: `Imagen de ${type} subida correctamente`,
-      url: secure_url,
-      type: type
-    });
-  } catch (error) {
-    console.error('Error en updateImage:', error);
-    return res.status(500).json({ ok: false, msg: 'Error en el servidor', error: error.message });
   }
 };
 

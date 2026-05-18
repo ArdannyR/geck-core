@@ -4,7 +4,7 @@ import Workspace from '../models/Workspace.js';
 import mongoose from 'mongoose';
 import { uploadFileToCloudinary } from '../helpers/cloudinary.js';
 
-// 11 endpoints: getDesktop, createItem, uploadFileItem, getItemById, renameItem, moveItem, updateBulkPositions, updateTextContent, deleteItem, shareItem, getAllItems
+// getDesktop, createItem, uploadFileItem, getItemById, updateBulkPositions, updateItem, deleteItem, getAllItems
 
 export const getDesktop = async (req, res) => {
   try {
@@ -172,107 +172,6 @@ export const getItemById = async (req, res) => {
   }
 };
 
-export const renameItem = async (req, res) => {
-  try {
-    const userId = req.user._id;
-    const { id } = req.params;
-    const { name } = req.body;
-
-    if (!name || !String(name).trim()) return res.status(400).json({ ok: false, msg: 'El nombre es obligatorio' });
-
-    const item = await Item.findOneAndUpdate(
-      { _id: id, userId },
-      { name: String(name).trim() },
-      { new: true }
-    );
-
-    if (!item) return res.status(404).json({ ok: false, msg: 'Ítem no encontrado o no pertenece al usuario' });
-
-    const io = req.app.get('io');
-    if (io) {
-      const payload = { id: item._id, name: item.name, parentId: item.parentId, position: item.position, type: item.type };
-      io.to(`user:${userId}`).emit('item-renamed', payload);
-      if (item.sharedWith?.length) {
-        item.sharedWith.forEach(s => io.to(`user:${s.userId}`).emit('item-renamed', payload));
-      }
-    }
-
-    return res.status(200).json({ ok: true, msg: 'Ítem renombrado correctamente', item });
-  } catch (error) {
-    return res.status(500).json({ ok: false, msg: `Error en el servidor - ${error.message}` });
-  }
-};
-
-export const moveItem = async (req, res) => {
-  try {
-    const userId = req.user._id;
-    const { id } = req.params;
-    const { x, y } = req.body;
-
-    if (x === undefined && y === undefined) {
-      return res.status(400).json({ ok: false, msg: 'Faltan coordenadas' });
-    }
-
-    const item = await Item.findById(id);
-    if (!item) {
-      return res.status(404).json({ ok: false, msg: 'Ítem no encontrado' });
-    }
-
-    const isOwner = String(item.userId) === String(userId);
-    const isShared = item.sharedWith.some(s => String(s.userId) === String(userId));
-
-    if (!isOwner && !isShared) {
-      return res.status(403).json({ ok: false, msg: 'No tienes permiso para mover esto' });
-    }
-
-    if (isOwner) {
-      if (x !== undefined) item.position.x = Number(x);
-      if (y !== undefined) item.position.y = Number(y);
-    } else {
-      const guestPosIndex = item.guestPositions.findIndex(gp => String(gp.userId) === String(userId));
-      if (guestPosIndex >= 0) {
-        if (x !== undefined) item.guestPositions[guestPosIndex].x = Number(x);
-        if (y !== undefined) item.guestPositions[guestPosIndex].y = Number(y);
-      } else {
-        item.guestPositions.push({
-          userId,
-          x: Number(x ?? item.position.x),
-          y: Number(y ?? item.position.y)
-        });
-      }
-    }
-    await item.save();
-
-    const io = req.app.get('io');
-
-    if (io) {
-      const payload = {
-        id: item._id,
-        position: { x: item.position.x, y: item.position.y }
-      };
-
-      if (item.workspaceId) {
-        io.to(`workspace:${item.workspaceId}`).emit('item-moved', payload);
-      } else {
-        io.to(`user:${item.userId}`).emit('item-moved', payload);
-        if (item.guestPositions && item.guestPositions.length > 0) {
-          item.guestPositions.forEach(guest => {
-            io.to(`user:${guest.userId}`).emit('item-moved', payload);
-          });
-        }
-      }
-    }
-
-    return res.status(200).json({
-      ok: true,
-      msg: 'Ítem movido correctamente',
-      item
-    });
-  } catch (error) {
-    return res.status(500).json({ ok: false, msg: error.message });
-  }
-};
-
 export const updateBulkPositions = async (req, res) => {
   try {
     const userId = req.user._id;
@@ -292,34 +191,6 @@ export const updateBulkPositions = async (req, res) => {
     return res.status(200).json({ ok: true, msg: 'Escritorio organizado guardado' });
   } catch (error) {
     return res.status(500).json({ ok: false, msg: error.message });
-  }
-};
-
-export const updateTextContent = async (req, res) => {
-  try {
-    const userId = req.user._id;
-    const { id } = req.params;
-    const { content } = req.body;
-
-    if (!content) return res.status(400).json({ msg: 'El contenido es obligatorio' });
-
-    const file = await Item.findOne({
-      _id: id,
-      type: { $in: ['note', 'code'] },
-      $or: [{ userId: userId }, { 'sharedWith': { $elemMatch: { userId: userId, permission: 'edit' } } }]
-    });
-
-    if (!file) return res.status(404).json({ msg: 'Archivo no encontrado o no tienes permiso de edición' });
-
-    file.content = content;
-    await file.save();
-
-    const io = req.app.get('io');
-    if (io) io.to(`user:${file.userId}`).emit('file-change', { fileId: id, content });
-
-    res.status(200).json({ ok: true, msg: 'Contenido guardado correctamente' });
-  } catch (error) {
-    res.status(500).json({ msg: 'Error guardando contenido' });
   }
 };
 
@@ -383,35 +254,94 @@ export const deleteItem = async (req, res) => {
   }
 };
 
-export const shareItem = async (req, res) => {
+export const updateItem = async (req, res) => {
   try {
-    const ownerId = req.user._id;
+    const userId = req.user._id;
     const { id } = req.params;
-    const { email, permission } = req.body;
+    const { name, x, y, email, permission } = req.body;
 
-    if (!email) return res.status(400).json({ msg: 'Email requerido' });
-    if (!['read', 'edit'].includes(permission)) return res.status(400).json({ msg: 'Permiso inválido (read/edit)' });
+    const item = await Item.findById(id);
+    if (!item) return res.status(404).json({ ok: false, msg: 'Ítem no encontrado' });
 
-    const item = await Item.findOne({ _id: id, userId: ownerId });
-    if (!item) return res.status(403).json({ msg: 'No puedes compartir este ítem (no eres propietario)' });
+    const isOwner = String(item.userId) === String(userId);
+    const isShared = item.sharedWith.some(s => String(s.userId) === String(userId));
 
-    const invitedUser = await User.findOne({ email });
-    if (!invitedUser) return res.status(404).json({ msg: 'Usuario invitado no existe' });
+    // Renombrar (solo propietario)
+    if (name !== undefined) {
+      if (!isOwner) return res.status(403).json({ ok: false, msg: 'No tienes permiso para renombrar este ítem' });
+      if (!String(name).trim()) return res.status(400).json({ ok: false, msg: 'El nombre no puede estar vacío' });
+      item.name = String(name).trim();
+    }
 
-    if (String(invitedUser._id) === String(ownerId)) return res.status(400).json({ msg: 'No puedes compartir contigo mismo' });
+    // Mover posición
+    if (x !== undefined || y !== undefined) {
+      if (!isOwner && !isShared) return res.status(403).json({ ok: false, msg: 'No tienes permiso para mover esto' });
 
-    const index = item.sharedWith.findIndex(s => String(s.userId) === String(invitedUser._id));
-    if (index >= 0) item.sharedWith[index].permission = permission;
-    else item.sharedWith.push({ userId: invitedUser._id, permission });
+      if (isOwner) {
+        if (x !== undefined) item.position.x = Number(x);
+        if (y !== undefined) item.position.y = Number(y);
+      } else {
+        const guestPosIndex = item.guestPositions.findIndex(gp => String(gp.userId) === String(userId));
+        if (guestPosIndex >= 0) {
+          if (x !== undefined) item.guestPositions[guestPosIndex].x = Number(x);
+          if (y !== undefined) item.guestPositions[guestPosIndex].y = Number(y);
+        } else {
+          item.guestPositions.push({
+            userId,
+            x: Number(x ?? item.position.x),
+            y: Number(y ?? item.position.y)
+          });
+        }
+      }
+    }
+
+    // Compartir (solo propietario)
+    if (email !== undefined || permission !== undefined) {
+      if (!isOwner) return res.status(403).json({ ok: false, msg: 'No puedes compartir este ítem (no eres propietario)' });
+      if (!email) return res.status(400).json({ msg: 'Email requerido' });
+      if (!permission || !['read', 'edit'].includes(permission)) return res.status(400).json({ msg: 'Permiso inválido (read/edit)' });
+
+      const invitedUser = await User.findOne({ email });
+      if (!invitedUser) return res.status(404).json({ msg: 'Usuario invitado no existe' });
+      if (String(invitedUser._id) === String(userId)) return res.status(400).json({ msg: 'No puedes compartir contigo mismo' });
+
+      const index = item.sharedWith.findIndex(s => String(s.userId) === String(invitedUser._id));
+      if (index >= 0) item.sharedWith[index].permission = permission;
+      else item.sharedWith.push({ userId: invitedUser._id, permission });
+    }
 
     await item.save();
 
     const io = req.app.get('io');
-    if (io) io.to(`user:${invitedUser._id}`).emit('item-shared', item);
+    if (io) {
+      if (name !== undefined) {
+        const payload = { id: item._id, name: item.name, parentId: item.parentId, position: item.position, type: item.type };
+        io.to(`user:${userId}`).emit('item-renamed', payload);
+        if (item.sharedWith?.length) {
+          item.sharedWith.forEach(s => io.to(`user:${s.userId}`).emit('item-renamed', payload));
+        }
+      }
 
-    return res.status(200).json({ ok: true, msg: 'Ítem compartido correctamente', sharedWith: item.sharedWith });
+      if (x !== undefined || y !== undefined) {
+        const payload = { id: item._id, position: { x: item.position.x, y: item.position.y } };
+        if (item.workspaceId) {
+          io.to(`workspace:${item.workspaceId}`).emit('item-moved', payload);
+        } else {
+          io.to(`user:${item.userId}`).emit('item-moved', payload);
+          if (item.guestPositions && item.guestPositions.length > 0) {
+            item.guestPositions.forEach(guest => io.to(`user:${guest.userId}`).emit('item-moved', payload));
+          }
+        }
+      }
+
+      if (email !== undefined) {
+        io.to(`user:${invitedUser._id}`).emit('item-shared', item);
+      }
+    }
+
+    return res.status(200).json({ ok: true, msg: 'Ítem actualizado correctamente', item });
   } catch (error) {
-    return res.status(500).json({ msg: 'Error en el servidor' });
+    return res.status(500).json({ ok: false, msg: `Error en el servidor - ${error.message}` });
   }
 };
 
