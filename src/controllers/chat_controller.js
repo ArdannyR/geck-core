@@ -163,13 +163,9 @@ export const sendAudioMessage = async (req, res) => {
     await Chat.findByIdAndUpdate(chatId, { lastMessage: newMessage._id });
 
     const io = req.app.get('io');
-    const chat = await Chat.findById(chatId);
-
-    chat.participants.forEach(participantId => {
-      if (participantId.toString() !== userId.toString()) {
-        io.to(participantId.toString()).emit('message_received', populatedMessage);
-      }
-    });
+    if (io) {
+      io.to(chatId.toString()).emit('receive_message', populatedMessage);
+    }
 
     return res.status(201).json({
       ok: true,
@@ -218,7 +214,7 @@ export const sendFileMessage = async (req, res) => {
 
     const io = req.app.get('io');
     if (io) {
-      io.to(`chat:${chatId}`).emit('new_message', populatedMessage);
+      io.to(chatId.toString()).emit('receive_message', populatedMessage);
     }
 
     return res.status(201).json({
@@ -283,13 +279,7 @@ export const sendMessage = async (req, res) => {
 
     const io = req.app.get('io');
     if (io) {
-      io.to(chatId).emit('receive_message', populatedMessage);
-
-      participantIds.forEach(pid => {
-        if (pid !== senderId) {
-          io.to(pid).emit('receive_message', populatedMessage);
-        }
-      });
+      io.to(chatId.toString()).emit('receive_message', populatedMessage);
     }
 
     const senderName = req.user?.name || 'Alguien';
