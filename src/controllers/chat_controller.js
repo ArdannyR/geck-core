@@ -1,6 +1,8 @@
 import Chat from '../models/Chat.js';
 import Message from '../models/Message.js';
+import User from '../models/User.js';
 import { uploadFileToCloudinary } from '../helpers/cloudinary.js';
+import { sendPushNotification } from '../helpers/expo_push.js';
 
 const getUserId = (req) => {
   const id = req.user?.id || req.user?._id || req.user?.uid;
@@ -27,14 +29,14 @@ export const accessChat = async (req, res) => {
     let chat = await Chat.findOne({
       isGroup: false,
       participants: { $all: [userId, otherUserId], $size: 2 }
-    }).populate('participants', 'name email');
+    }).populate('participants', 'name email avatarUrl');
 
     if (!chat) {
       chat = await Chat.create({
         isGroup: false,
         participants: [userId, otherUserId]
       });
-      chat = await chat.populate('participants', 'name email');
+      chat = await chat.populate('participants', 'name email avatarUrl');
     }
 
     return res.status(200).json({ ok: true, chat });
@@ -67,7 +69,7 @@ export const createGroupChat = async (req, res) => {
       groupName: name
     });
 
-    const populatedChat = await chat.populate('participants', 'name email');
+    const populatedChat = await chat.populate('participants', 'name email avatarUrl');
     return res.status(201).json({ ok: true, chat: populatedChat });
   } catch (error) {
     console.error('Error en createGroupChat:', error);
@@ -83,7 +85,7 @@ export const fetchChats = async (req, res) => {
     const chats = await Chat.find({
       participants: userId
     })
-      .populate('participants', 'name email')
+      .populate('participants', 'name email avatarUrl')
       .populate('admins', 'name email')
       .populate('lastMessage')
       .populate('workspaceId', 'name')
@@ -205,7 +207,7 @@ export const sendFileMessage = async (req, res) => {
 
     await Chat.findByIdAndUpdate(chatId, { lastMessage: newMessage._id });
 
-    const populatedMessage = await newMessage.populate('senderId', 'name email');
+    const populatedMessage = await newMessage.populate('senderId', 'name email avatarUrl');
 
     const io = req.app.get('io');
     if (io) {
@@ -258,13 +260,45 @@ export const sendMessage = async (req, res) => {
 
     const message = await Message.create(messageData);
 
-    await Chat.findByIdAndUpdate(chatId, { lastMessage: message._id });
+    const unreadIncrements = {};
+    participantIds.forEach(pid => {
+      if (pid !== senderId) {
+        unreadIncrements[`unreadCounts.${pid}`] = 1;
+      }
+    });
 
-    const populatedMessage = await message.populate('senderId', 'name email');
+    await Chat.findByIdAndUpdate(chatId, {
+      $inc: unreadIncrements,
+      lastMessage: message._id
+    });
+
+    const populatedMessage = await message.populate('senderId', 'name email avatarUrl');
 
     const io = req.app.get('io');
     if (io) {
-      io.to(`chat:${chatId}`).emit('new_message', populatedMessage);
+      io.to(chatId).emit('receive_message', populatedMessage);
+
+      participantIds.forEach(pid => {
+        if (pid !== senderId) {
+          io.to(pid).emit('receive_message', populatedMessage);
+        }
+      });
+    }
+
+    const senderName = req.user?.name || 'Alguien';
+    const participantsToNotify = participantIds.filter(pid => pid !== senderId);
+    if (participantsToNotify.length > 0) {
+      const users = await User.find({ _id: { $in: participantsToNotify } }).select('pushToken');
+      users.forEach(user => {
+        if (user.pushToken) {
+          sendPushNotification(
+            user.pushToken,
+            senderName,
+            content,
+            { chatId }
+          );
+        }
+      });
     }
 
     return res.status(201).json({ ok: true, message: populatedMessage });
@@ -298,7 +332,7 @@ export const fetchMessages = async (req, res) => {
       chatId,
       deletedFor: { $ne: userId }
     })
-      .populate('senderId', 'name email')
+      .populate('senderId', 'name email avatarUrl')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
@@ -349,7 +383,7 @@ export const editMessage = async (req, res) => {
     message.isEdited = true;
     await message.save();
 
-    const populatedMessage = await message.populate('senderId', 'name email');
+    const populatedMessage = await message.populate('senderId', 'name email avatarUrl');
     return res.status(200).json({ ok: true, message: populatedMessage });
   } catch (error) {
     console.error('Error en editMessage:', error);

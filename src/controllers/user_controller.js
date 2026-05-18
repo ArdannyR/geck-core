@@ -108,31 +108,40 @@ export const updatePreferences = async (req, res) => {
           await cloudinary.uploader.destroy(userDB.preferences.wallpaperPublicId).catch(() => {});
         }
         const { secure_url, public_id } = await uploadFileToCloudinary(req.files.wallpaper.tempFilePath, 'VirtualDesk_Wallpapers');
-        userDB.preferences.wallpaperUrl = secure_url; // Aquí guardamos la URL correcta
+        userDB.preferences.wallpaperUrl = secure_url;
         userDB.preferences.wallpaperPublicId = public_id;
+      }
+
+      if (req.files.phoneWallpaper) {
+        if (userDB.preferences.phoneWallpaperPublicId) {
+          await cloudinary.uploader.destroy(userDB.preferences.phoneWallpaperPublicId).catch(() => {});
+        }
+        const { secure_url, public_id } = await uploadFileToCloudinary(req.files.phoneWallpaper.tempFilePath, 'PhoneWallpapers');
+        userDB.preferences.phoneWallpaperUrl = secure_url;
+        userDB.preferences.phoneWallpaperPublicId = public_id;
       }
     }
 
     // Guardamos todos los cambios de una sola vez
     await userDB.save();
 
-    // Opcional: Emitir por sockets si tienes tiempo real
     const io = req.app.get('io');
     if (io) {
       io.to(`user:${userId}`).emit('preferences-updated', {
         theme: userDB.preferences.theme,
         accent: userDB.preferences.accent,
         wallpaperUrl: userDB.preferences.wallpaperUrl,
+        phoneWallpaperUrl: userDB.preferences.phoneWallpaperUrl,
         avatarUrl: userDB.avatarUrl
       });
     }
 
-    // Enviamos la respuesta incluyendo el avatar para que puedas verlo en Postman
     return res.status(200).json({ 
       ok: true, 
       msg: 'Preferencias e imágenes actualizadas correctamente', 
       preferences: userDB.preferences,
-      avatarUrl: userDB.avatarUrl 
+      avatarUrl: userDB.avatarUrl,
+      phoneWallpaperUrl: userDB.preferences.phoneWallpaperUrl
     });
 
   } catch (error) {
@@ -224,5 +233,23 @@ export const searchUsers = async (req, res) => {
   } catch (error) {
     console.error('Error en searchUsers:', error);
     return res.status(500).json({ ok: false, msg: 'Error al buscar usuarios' });
+  }
+};
+
+export const updatePushToken = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { pushToken } = req.body;
+
+    if (!pushToken) {
+      return res.status(400).json({ ok: false, msg: 'pushToken es requerido' });
+    }
+
+    await User.findByIdAndUpdate(userId, { pushToken });
+
+    return res.status(200).json({ ok: true, msg: 'Push token actualizado correctamente' });
+  } catch (error) {
+    console.error('Error en updatePushToken:', error);
+    return res.status(500).json({ ok: false, msg: 'Error al actualizar push token' });
   }
 };

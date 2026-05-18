@@ -137,6 +137,31 @@ const startServer = async () => {
       }
     });
 
+    socket.on('mark_as_read', async ({ messageId, chatId, userId }) => {
+      try {
+        const message = await Message.findByIdAndUpdate(
+          messageId,
+          { $addToSet: { readBy: userId } },
+          { new: true }
+        );
+
+        if (!message) return;
+
+        await Chat.findByIdAndUpdate(chatId, {
+          $set: { [`unreadCounts.${userId}`]: 0 }
+        });
+
+        io.to(chatId).emit('message_read_update', {
+          messageId,
+          chatId,
+          userId,
+          readByCount: message.readBy.length
+        });
+      } catch (error) {
+        console.error('Error en mark_as_read:', error);
+      }
+    });
+
     socket.on('get_online_users', () => {
       socket.emit('online_users_list', Array.from(onlineUsers.keys()));
     });

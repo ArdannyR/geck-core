@@ -39,6 +39,10 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: null
     },
+    pushToken: {
+      type: String,
+      default: null
+    },
     role: {
       type: String,
       enum: ['student', 'admin'],
@@ -59,6 +63,14 @@ const userSchema = new mongoose.Schema(
         default: null
       },
       wallpaperPublicId: {
+        type: String,
+        default: null
+      },
+      phoneWallpaperUrl: {
+        type: String,
+        default: null
+      },
+      phoneWallpaperPublicId: {
         type: String,
         default: null
       }
