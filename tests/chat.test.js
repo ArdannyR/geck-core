@@ -1,3 +1,11 @@
+/*
+ * Archivo de Pruebas: Módulo de Chat
+ * Propósito: Verificar el acceso a chats, envío de mensajes y obtención de mensajes.
+ * Resultados esperados: 
+ * - Camino feliz: Respuestas 200/201 con datos del chat y mensajes.
+ * - Camino triste: Respuestas 400/404 ante datos faltantes o chats inexistentes.
+ */
+
 import { jest } from '@jest/globals';
 import mongoose from 'mongoose';
 

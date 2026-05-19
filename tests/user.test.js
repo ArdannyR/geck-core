@@ -1,7 +1,13 @@
+/*
+ * Archivo de Pruebas: Módulo de Usuario
+ * Propósito: Verificar la actualización del perfil de usuario.
+ * Resultados esperados: 
+ * - Camino feliz: Respuesta 200 con confirmación de perfil actualizado.
+ * - Camino triste: Respuesta 400 ante campos vacíos.
+ */
+
 import { jest } from '@jest/globals';
 import mongoose from 'mongoose';
-
-// ─── MOCK (antes de cualquier import que dependa del modelo) ──────────────────
 
 let mockUserFindById;
 
@@ -14,11 +20,7 @@ jest.unstable_mockModule('../src/models/User.js', () => {
   };
 });
 
-// ─── IMPORTS (después de los mocks) ──────────────────────────────────────────
-
 const { updateProfile } = await import('../src/controllers/user_controller.js');
-
-// ─── TESTS ────────────────────────────────────────────────────────────────────
 
 describe('User Controller - updateProfile', () => {
   let req, res;
@@ -41,7 +43,6 @@ describe('User Controller - updateProfile', () => {
   test('Debería retornar error 400 si se envían campos vacíos', async () => {
     req.body = { name: '', email: 'ardanny@test.com' };
 
-    // Usamos la referencia directa al mock, no User.findById
     mockUserFindById.mockResolvedValue({ _id: validId, email: 'ardanny@test.com' });
 
     await updateProfile(req, res);

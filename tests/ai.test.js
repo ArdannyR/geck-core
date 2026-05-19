@@ -1,3 +1,11 @@
+/*
+ * Archivo de Pruebas: Módulo de IA
+ * Propósito: Verificar el chat con el asistente de IA.
+ * Resultados esperados: 
+ * - Camino feliz: Respuesta 200 con la respuesta del asistente.
+ * - Camino triste: Respuesta 400 ante mensaje vacío.
+ */
+
 import { jest } from '@jest/globals';
 
 const mockAxiosPost = jest.fn();

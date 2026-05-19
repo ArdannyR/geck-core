@@ -1,3 +1,11 @@
+/*
+ * Archivo de Pruebas: Módulo de Ejecución de Código
+ * Propósito: Verificar la ejecución de código en distintos lenguajes.
+ * Resultados esperados: 
+ * - Camino feliz: Respuesta 200 con output exitoso.
+ * - Camino triste: Respuesta 200 con indicador de error de compilación.
+ */
+
 import { jest } from '@jest/globals';
 
 const mockExec = jest.fn();

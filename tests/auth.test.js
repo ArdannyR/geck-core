@@ -1,7 +1,13 @@
+/*
+ * Archivo de Pruebas: Módulo de Autenticación
+ * Propósito: Verificar el correcto funcionamiento de los endpoints de registro e inicio de sesión.
+ * Resultados esperados: 
+ * - Camino feliz: Respuestas 200/201 con la generación exitosa del Token JWT.
+ * - Camino triste: Respuestas 400/404 ante datos incompletos o usuarios no registrados.
+ */
+
 import { jest } from '@jest/globals';
 import mongoose from 'mongoose';
-
-// ─── MOCKS (siempre primero) ──────────────────────────────────────────────────
 
 let mockUserFindOne;
 
@@ -32,11 +38,7 @@ jest.unstable_mockModule('../src/helpers/jwt.js', () => {
   return { createJWT: mockCreateJWT };
 });
 
-// ─── IMPORTS dinámicos (después de los mocks) ─────────────────────────────────
-
 const { registerUser, loginUser } = await import('../src/controllers/auth_controller.js');
-
-// ─── TESTS ────────────────────────────────────────────────────────────────────
 
 describe('Auth Controller - loginUser', () => {
   let req, res;

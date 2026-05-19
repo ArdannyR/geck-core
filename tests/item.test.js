@@ -1,3 +1,11 @@
+/*
+ * Archivo de Pruebas: Módulo de Ítems
+ * Propósito: Verificar la creación y actualización de ítems.
+ * Resultados esperados: 
+ * - Camino feliz: Respuestas 200/201 con confirmación de operación.
+ * - Camino triste: Respuestas 400/404 ante datos inválidos o ítem inexistente.
+ */
+
 import { jest } from '@jest/globals';
 import mongoose from 'mongoose';
 

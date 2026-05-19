@@ -1,3 +1,11 @@
+/*
+ * Archivo de Pruebas: Módulo de Dashboard
+ * Propósito: Verificar el acceso compartido al escritorio.
+ * Resultados esperados: 
+ * - Camino feliz: Respuesta 200 confirmando acceso concedido.
+ * - Camino triste: Respuesta 400 ante falta de correo electrónico.
+ */
+
 import { jest } from '@jest/globals';
 import mongoose from 'mongoose';
 

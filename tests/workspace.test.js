@@ -1,7 +1,13 @@
+/*
+ * Archivo de Pruebas: Módulo de Workspace
+ * Propósito: Verificar la creación de workspaces e invitación de miembros.
+ * Resultados esperados: 
+ * - Camino feliz: Respuesta 200 con invitación enviada exitosamente.
+ * - Camino triste: Respuestas 400/404 ante nombre faltante o workspace inexistente.
+ */
+
 import { jest } from '@jest/globals';
 import mongoose from 'mongoose';
-
-// ─── MOCKS (deben ir antes de cualquier import de los módulos mockeados) ───────
 
 let mockWorkspaceFindById;
 jest.unstable_mockModule('../src/models/Workspace.js', () => {
@@ -43,11 +49,7 @@ jest.unstable_mockModule('../src/helpers/mail.js', () => {
   return { sendWorkspaceInviteEmail: mockMail };
 });
 
-// ─── IMPORTS (después de todos los mocks) ─────────────────────────────────────
-
 const { createWorkspace, inviteMember } = await import('../src/controllers/workspace_controller.js');
-
-// ─── TESTS ────────────────────────────────────────────────────────────────────
 
 describe('Workspace Controller - createWorkspace', () => {
   let req, res;
@@ -96,10 +98,8 @@ describe('Workspace Controller - inviteMember', () => {
   test('Debería retornar error 404 si el workspace no existe', async () => {
     req.body = { workspaceId: 'idFalso', email: 'invitado@test.com' };
 
-    // Usuario SÍ existe
     mockUserFindOne.mockResolvedValue({ _id: 'user123', email: 'invitado@test.com' });
 
-    // Workspace NO existe
     mockWorkspaceFindById.mockResolvedValue(null);
 
     await inviteMember(req, res);
