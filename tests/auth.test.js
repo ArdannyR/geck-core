@@ -89,4 +89,5 @@ describe('Auth Controller - loginUser', () => {
       email: 'ardanny@test.com'
     });
   });
+  
 });

@@ -1,0 +1,42 @@
+config:
+  target: "http://localhost:3000" # Cambia esto por el puerto donde corra tu servidor local
+  phases:
+    - duration: 30 # Durante 30 segundos...
+      arrivalRate: 5 # ...entrarán 5 usuarios nuevos por segundo (Calentamiento)
+      name: "Warm up"
+    - duration: 60 # Luego, durante 60 segundos...
+      arrivalRate: 50 # ...entrarán 50 usuarios nuevos por segundo (Pico de estrés)
+      name: "Spike"
+  
+  # Si necesitas variables de entorno para las pruebas, las pones aquí
+  payload:
+    # Puedes usar un archivo CSV si quieres simular múltiples usuarios diferentes
+    # path: "users.csv"
+    # fields:
+    #   - "email"
+    #   - "password"
+
+scenarios:
+  - name: "Flujo: Iniciar sesión y enviar mensaje"
+    flow:
+      # 1. El usuario virtual hace Login
+      - post:
+          url: "/api/auth/login" # Ajusta el prefijo '/api/auth' según tu app.js
+          json:
+            email: "ardannyromero@gmail.com" # Un usuario real de tu base de datos de pruebas
+            password: "000000"
+          capture:
+            - json: "$.token" # Capturamos el JWT de la respuesta
+              as: "jwt_token" # Lo guardamos en esta variable virtual
+      
+      # 2. Hacemos una pausa simulando que el usuario lee la pantalla
+      - think: 2
+
+      # 3. El usuario envía un mensaje de texto
+      - post:
+          url: "/api/chat/message" # Ajusta según tus rutas
+          headers:
+            Authorization: "Bearer {{ jwt_token }}" # Inyectamos el token capturado
+          json:
+            chatId: "6a032209cbcb9e0ee5857cd0"
+            content: "Hola, esta es una prueba de carga generada por Artillery --- Borren el grupo..."

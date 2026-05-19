@@ -9,6 +9,56 @@ const getUserId = (req) => {
   return id ? id.toString() : null;
 };
 
+export const deleteChat = async (req, res) => {
+  try {
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ ok: false, msg: 'Usuario no autenticado' });
+
+    const { chatId } = req.params;
+
+    // 1. Buscar el chat
+    const chat = await Chat.findById(chatId);
+    if (!chat) {
+      return res.status(404).json({ ok: false, msg: 'Chat no encontrado' });
+    }
+
+    // 2. Validar permisos
+    if (chat.isGroup) {
+      // Si es un grupo, solo los administradores pueden eliminarlo
+      const isAdmin = chat.admins.some(adminId => adminId.toString() === userId);
+      if (!isAdmin) {
+        return res.status(403).json({ ok: false, msg: 'Solo los administradores pueden eliminar este grupo' });
+      }
+    } else {
+      // Si es un chat 1 a 1, solo los participantes pueden eliminarlo
+      const isParticipant = chat.participants.some(pId => pId.toString() === userId);
+      if (!isParticipant) {
+        return res.status(403).json({ ok: false, msg: 'No tienes permiso para eliminar este chat' });
+      }
+    }
+
+    // 3. Eliminar TODOS los mensajes asociados a este chat (Borrado en cascada)
+    await Message.deleteMany({ chatId: chat._id });
+
+    // 4. Eliminar el documento del Chat
+    await Chat.findByIdAndDelete(chatId);
+
+    // 5. Opcional: Avisar por sockets a los participantes para que desaparezca de su interfaz
+    const io = req.app.get('io');
+    if (io) {
+      chat.participants.forEach(pid => {
+        io.to(pid.toString()).emit('chat_deleted', { chatId });
+      });
+    }
+
+    return res.status(200).json({ ok: true, msg: 'Chat y todos sus mensajes eliminados correctamente' });
+
+  } catch (error) {
+    console.error('Error en deleteChat:', error);
+    return res.status(500).json({ ok: false, msg: 'Error al eliminar el chat' });
+  }
+};
+
 export const accessChat = async (req, res) => {
   try {
     const userId = getUserId(req);
