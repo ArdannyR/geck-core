@@ -1,8 +1,9 @@
 import { jest } from '@jest/globals';
 import mongoose from 'mongoose';
 
-let mockWorkspaceFindById;
+// ─── MOCKS (deben ir antes de cualquier import de los módulos mockeados) ───────
 
+let mockWorkspaceFindById;
 jest.unstable_mockModule('../src/models/Workspace.js', () => {
   const mock = jest.fn();
   mockWorkspaceFindById = jest.fn();
@@ -12,12 +13,17 @@ jest.unstable_mockModule('../src/models/Workspace.js', () => {
   return { default: mock };
 });
 
-let mockUserFindOne;
-
+let mockUserFindById, mockUserFindOne;
 jest.unstable_mockModule('../src/models/User.js', () => {
+  mockUserFindById = jest.fn();
   mockUserFindOne = jest.fn();
   return {
-    default: { findById: jest.fn(), findOne: mockUserFindOne, find: jest.fn(), findByIdAndUpdate: jest.fn() }
+    default: {
+      findById: mockUserFindById,
+      findOne: mockUserFindOne,
+      find: jest.fn(),
+      findByIdAndUpdate: jest.fn()
+    }
   };
 });
 
@@ -32,13 +38,16 @@ jest.unstable_mockModule('../src/models/Chat.js', () => {
 });
 
 let mockMail;
-
 jest.unstable_mockModule('../src/helpers/mail.js', () => {
   mockMail = jest.fn();
   return { sendWorkspaceInviteEmail: mockMail };
 });
 
+// ─── IMPORTS (después de todos los mocks) ─────────────────────────────────────
+
 const { createWorkspace, inviteMember } = await import('../src/controllers/workspace_controller.js');
+
+// ─── TESTS ────────────────────────────────────────────────────────────────────
 
 describe('Workspace Controller - createWorkspace', () => {
   let req, res;
@@ -46,7 +55,6 @@ describe('Workspace Controller - createWorkspace', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    // Eliminamos la línea de User.findById que causaba el ReferenceError
     req = {
       user: { _id: validId },
       body: {},
@@ -66,17 +74,32 @@ describe('Workspace Controller - createWorkspace', () => {
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith({ ok: false, msg: 'El nombre es obligatorio' });
   });
-
-  // Eliminamos la prueba de "inviteMember" que la IA pegó aquí por accidente
 });
 
-test('Debería retornar error 404 si el workspace no existe', async () => {
-    req.body = { workspaceId, email: 'invitado@test.com' };
-    
-    // 1. AÑADIMOS ESTO: Simulamos que el usuario SÍ existe usando la variable del mock
+describe('Workspace Controller - inviteMember', () => {
+  let req, res;
+  const validId = new mongoose.Types.ObjectId().toString();
+  const workspaceId = new mongoose.Types.ObjectId().toString();
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    req = {
+      user: { _id: validId, name: 'Test User' },
+      body: {}
+    };
+    res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    };
+  });
+
+  test('Debería retornar error 404 si el workspace no existe', async () => {
+    req.body = { workspaceId: 'idFalso', email: 'invitado@test.com' };
+
+    // Usuario SÍ existe
     mockUserFindOne.mockResolvedValue({ _id: 'user123', email: 'invitado@test.com' });
 
-    // 2. Simulamos que el Workspace NO existe
+    // Workspace NO existe
     mockWorkspaceFindById.mockResolvedValue(null);
 
     await inviteMember(req, res);
@@ -84,3 +107,30 @@ test('Debería retornar error 404 si el workspace no existe', async () => {
     expect(res.status).toHaveBeenCalledWith(404);
     expect(res.json).toHaveBeenCalledWith({ ok: false, msg: 'Workspace no encontrado' });
   });
+
+  test('Debería invitar exitosamente y retornar 200', async () => {
+    const invitedUserId = new mongoose.Types.ObjectId().toString();
+    req.body = { workspaceId, email: 'invitado@test.com' };
+
+    const mockWorkspaceData = {
+      _id: workspaceId,
+      name: 'Mi Workspace',
+      owner: validId,
+      members: [validId],
+      pendingInvites: [],
+      save: jest.fn().mockResolvedValue(true)
+    };
+
+    mockWorkspaceFindById.mockResolvedValue(mockWorkspaceData);
+    mockUserFindOne.mockResolvedValue({ _id: invitedUserId, name: 'Invitado', email: 'invitado@test.com' });
+
+    await inviteMember(req, res);
+
+    expect(mockWorkspaceData.save).toHaveBeenCalled();
+    expect(mockMail).toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ ok: true, msg: expect.stringContaining('Invitación enviada') })
+    );
+  });
+});
