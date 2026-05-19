@@ -86,6 +86,7 @@ export const updatePreferences = async (req, res) => {
     // 1. Actualizar campos de texto
     if (theme && ['light', 'dark'].includes(theme)) userDB.preferences.theme = theme;
     if (accent) userDB.preferences.accent = accent;
+    if (req.body.wallpaperUrl !== undefined) userDB.preferences.wallpaperUrl = req.body.wallpaperUrl;
 
     // 2. Procesar archivos si vienen en la petición (form-data)
     if (req.files) {
