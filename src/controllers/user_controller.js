@@ -84,7 +84,7 @@ export const updatePreferences = async (req, res) => {
     if (!userDB) return res.status(404).json({ ok: false, msg: 'Usuario no encontrado' });
 
     // 1. Actualizar campos de texto
-    if (theme && ['light', 'dark'].includes(theme)) userDB.preferences.theme = theme;
+    if (theme && ['light', 'dark', 'system'].includes(theme)) userDB.preferences.theme = theme;
     if (accent) userDB.preferences.accent = accent;
     if (req.body.wallpaperUrl !== undefined) userDB.preferences.wallpaperUrl = req.body.wallpaperUrl;
 

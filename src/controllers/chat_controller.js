@@ -163,8 +163,12 @@ export const markChatAsRead = async (req, res) => {
 
     await Message.updateMany(
       { chatId, senderId: { $ne: userId }, readBy: { $ne: userId } },
-      { $addToSet: { readBy: userId }, $set: { status: 'read' } }
+      { $addToSet: { readBy: userId } }
     );
+
+    await Chat.findByIdAndUpdate(chatId, {
+      $set: { [`unreadCounts.${userId}`]: 0 }
+    });
 
     const io = req.app.get('io');
     if (io) {

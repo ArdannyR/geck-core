@@ -93,72 +93,36 @@ const startServer = async () => {
       console.log(`Usuario ${userId} configurado y en línea`);
     });
 
-    socket.on('message_delivered', async ({ messageIds, userId }) => {
+    socket.on('mark_delivered', async ({ messageId, userId, chatId }) => {
       try {
-        await Message.updateMany(
-          { _id: { $in: messageIds } },
-          { $set: { status: 'delivered' } }
-        );
-
-        const messages = await Message.find({ _id: { $in: messageIds } });
-        messages.forEach(msg => {
-          if (msg.senderId.toString() !== userId) {
-            socket.to(msg.senderId.toString()).emit('message_status_update', {
-              messageId: msg._id,
-              status: 'delivered'
-            });
-          }
+        const message = await Message.findById(messageId);
+        if (!message || message.deliveredTo.includes(userId)) return;
+        message.deliveredTo.push(userId);
+        await message.save();
+        socket.to(chatId.toString()).emit('message_status_update', {
+          messageId,
+          deliveredTo: message.deliveredTo,
+          readBy: message.readBy
         });
       } catch (error) {
-        console.error('Error en message_delivered:', error);
+        console.error('Error en mark_delivered:', error);
       }
     });
 
-    socket.on('message_read', async ({ chatId, userId }) => {
+    socket.on('mark_read', async ({ chatId, userId }) => {
       try {
         await Message.updateMany(
-          { chatId, senderId: { $ne: userId }, status: { $ne: 'read' } },
-          { $set: { status: 'read' } }
+          { chatId, senderId: { $ne: userId }, readBy: { $ne: userId } },
+          { $addToSet: { readBy: userId, deliveredTo: userId } }
         );
-
-        const chat = await Chat.findById(chatId);
-        if (chat) {
-          chat.participants.forEach(participantId => {
-            if (participantId.toString() !== userId) {
-              socket.to(participantId.toString()).emit('chat_read', {
-                chatId,
-                readBy: userId
-              });
-            }
-          });
-        }
-      } catch (error) {
-        console.error('Error en message_read:', error);
-      }
-    });
-
-    socket.on('mark_as_read', async ({ messageId, chatId, userId }) => {
-      try {
-        const message = await Message.findByIdAndUpdate(
-          messageId,
-          { $addToSet: { readBy: userId } },
-          { new: true }
-        );
-
-        if (!message) return;
-
         await Chat.findByIdAndUpdate(chatId, {
           $set: { [`unreadCounts.${userId}`]: 0 }
         });
-
-        io.to(chatId).emit('message_read_update', {
-          messageId,
-          chatId,
-          userId,
-          readByCount: message.readBy.length
-        });
+        const updatedMessages = await Message.find({ chatId, senderId: { $ne: userId } })
+                                             .select('_id deliveredTo readBy');
+        socket.to(chatId.toString()).emit('chat_status_bulk_update', { updatedMessages });
       } catch (error) {
-        console.error('Error en mark_as_read:', error);
+        console.error('Error en mark_read:', error);
       }
     });
 
