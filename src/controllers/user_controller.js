@@ -78,7 +78,7 @@ export const updatePreferences = async (req, res) => {
   try {
     const userId = req.user._id;
     // Recibimos los datos de texto (si los envían)
-    const { theme, accent } = req.body;
+    const { theme, accent } = req.body || {};
 
     const userDB = await User.findById(userId);
     if (!userDB) return res.status(404).json({ ok: false, msg: 'Usuario no encontrado' });
