@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { verifyAuth } from '../middlewares/auth.js';
-import { accessChat, createGroupChat, fetchChats, sendMessage, fetchMessages, editMessage, deleteMessage, sendAudioMessage, sendFileMessage, markChatAsRead, deleteChat } from '../controllers/chat_controller.js';
+import { accessChat, createGroupChat, fetchChats, sendMessage, fetchMessages, editMessage, deleteMessage, sendAudioMessage, sendFileMessage, markChatAsRead, deleteChat, leaveGroupChat } from '../controllers/chat_controller.js';
 
 const router = Router();
 router.use(verifyAuth);
@@ -16,6 +16,7 @@ router.delete('/message/:messageId', deleteMessage);
 router.get('/:chatId/chat', fetchMessages);
 router.patch('/:chatId/read', markChatAsRead);
 router.delete('/:chatId/delete', deleteChat);
+router.post('/:chatId/leave', leaveGroupChat);
 
 
 export default router;

@@ -1,6 +1,8 @@
 import User from '../models/User.js';
 import Item from '../models/item.js';
 import Workspace from '../models/Workspace.js';
+import Chat from '../models/Chat.js';
+import Message from '../models/Message.js';
 import { uploadFileToCloudinary } from '../helpers/cloudinary.js';
 import { v2 as cloudinary } from 'cloudinary';
 import mongoose from 'mongoose';
@@ -77,55 +79,44 @@ export const updateProfile = async (req, res) => {
 export const updatePreferences = async (req, res) => {
   try {
     const userId = req.user._id;
-    // Recibimos los datos de texto (si los envían)
-    const { theme, accent } = req.body || {};
+    
+    // 1. EXTRACCIÓN SEGURA
+    const { theme, accent, wallpaperUrl } = req.body || {};
 
     const userDB = await User.findById(userId);
     if (!userDB) return res.status(404).json({ ok: false, msg: 'Usuario no encontrado' });
 
-    // 1. Actualizar campos de texto
+    // 2. Actualizar campos de texto SOLO si existen
     if (theme && ['light', 'dark', 'system'].includes(theme)) userDB.preferences.theme = theme;
     if (accent) userDB.preferences.accent = accent;
-    if (req.body.wallpaperUrl !== undefined) userDB.preferences.wallpaperUrl = req.body.wallpaperUrl;
+    if (wallpaperUrl !== undefined) userDB.preferences.wallpaperUrl = wallpaperUrl;
 
-    // 2. Procesar archivos si vienen en la petición (form-data)
+    // 3. Procesamiento de archivos (Cloudinary)
     if (req.files) {
-      
-      // Si el frontend envió un avatar
       if (req.files.avatar) {
-        // Borramos el anterior de Cloudinary si existe para no acumular basura
-        if (userDB.avatarPublicId) {
-          await cloudinary.uploader.destroy(userDB.avatarPublicId).catch(() => {});
-        }
-        // Subimos el nuevo
+        if (userDB.avatarPublicId) await cloudinary.uploader.destroy(userDB.avatarPublicId).catch(() => {});
         const { secure_url, public_id } = await uploadFileToCloudinary(req.files.avatar.tempFilePath, 'VirtualDesk_Avatars');
-        userDB.avatarUrl = secure_url; // Aquí guardamos la URL correcta
+        userDB.avatarUrl = secure_url; 
         userDB.avatarPublicId = public_id;
       }
-
-      // Si el frontend envió un wallpaper
       if (req.files.wallpaper) {
-        if (userDB.preferences.wallpaperPublicId) {
-          await cloudinary.uploader.destroy(userDB.preferences.wallpaperPublicId).catch(() => {});
-        }
+        if (userDB.preferences.wallpaperPublicId) await cloudinary.uploader.destroy(userDB.preferences.wallpaperPublicId).catch(() => {});
         const { secure_url, public_id } = await uploadFileToCloudinary(req.files.wallpaper.tempFilePath, 'VirtualDesk_Wallpapers');
         userDB.preferences.wallpaperUrl = secure_url;
         userDB.preferences.wallpaperPublicId = public_id;
       }
-
       if (req.files.phoneWallpaper) {
-        if (userDB.preferences.phoneWallpaperPublicId) {
-          await cloudinary.uploader.destroy(userDB.preferences.phoneWallpaperPublicId).catch(() => {});
-        }
+        if (userDB.preferences.phoneWallpaperPublicId) await cloudinary.uploader.destroy(userDB.preferences.phoneWallpaperPublicId).catch(() => {});
         const { secure_url, public_id } = await uploadFileToCloudinary(req.files.phoneWallpaper.tempFilePath, 'PhoneWallpapers');
         userDB.preferences.phoneWallpaperUrl = secure_url;
         userDB.preferences.phoneWallpaperPublicId = public_id;
       }
     }
 
-    // Guardamos todos los cambios de una sola vez
+    // 4. Guardado final
     await userDB.save();
 
+    // 5. Emitir a Sockets
     const io = req.app.get('io');
     if (io) {
       io.to(`user:${userId}`).emit('preferences-updated', {
@@ -142,7 +133,6 @@ export const updatePreferences = async (req, res) => {
       msg: 'Preferencias e imágenes actualizadas correctamente', 
       preferences: userDB.preferences,
       avatarUrl: userDB.avatarUrl,
-      phoneWallpaperUrl: userDB.preferences.phoneWallpaperUrl
     });
 
   } catch (error) {
@@ -186,6 +176,7 @@ export const deleteAccount = async (req, res) => {
       { session }
     );
 
+    // -- Workspace cascade --
     await Workspace.deleteMany({ owner: userId }).session(session);
     await Workspace.updateMany(
       { members: userId },
@@ -193,13 +184,48 @@ export const deleteAccount = async (req, res) => {
       { session }
     );
 
-    await User.updateMany(
-      { savedDesktops: userId },
-      { $pull: { savedDesktops: userId } },
+    // -- Chat & Message cascade --
+    // Group chats where user is the ONLY admin → delete entirely (with messages)
+    const groupChatsWithAdmin = await Chat.find({
+      isGroup: true, admins: userId
+    }).session(session);
+
+    const deleteChatIds = [];
+    for (const chat of groupChatsWithAdmin) {
+      if (chat.admins.length === 1 && chat.admins[0].toString() === userId.toString()) {
+        deleteChatIds.push(chat._id);
+      }
+    }
+
+    if (deleteChatIds.length > 0) {
+      await Message.deleteMany({ chatId: { $in: deleteChatIds } }).session(session);
+      await Chat.deleteMany({ _id: { $in: deleteChatIds } }).session(session);
+    }
+
+    // Other group chats → remove user from participants and admins
+    await Chat.updateMany(
+      { isGroup: true, participants: userId, _id: { $nin: deleteChatIds } },
+      { $pull: { participants: userId, admins: userId } },
       { session }
     );
 
-    await User.findByIdAndDelete(userId).session(session);
+    // 1:1 chats → remove user from participants
+    await Chat.updateMany(
+      { isGroup: false, participants: userId },
+      { $pull: { participants: userId } },
+      { session }
+    );
+
+    // Messages sent by the user
+    await Message.deleteMany({ senderId: userId }).session(session);
+
+    // -- Invalidate tokens/sessions --
+    await User.updateOne(
+      { _id: userId },
+      { $set: { token: null, pushToken: null } }
+    ).session(session);
+
+    await User.deleteOne({ _id: userId }).session(session);
 
     await session.commitTransaction();
     session.endSession();

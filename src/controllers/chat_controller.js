@@ -1,6 +1,7 @@
 import Chat from '../models/Chat.js';
 import Message from '../models/Message.js';
 import User from '../models/User.js';
+import Workspace from '../models/Workspace.js';
 import { uploadFileToCloudinary } from '../helpers/cloudinary.js';
 import { sendPushNotification } from '../helpers/expo_push.js';
 
@@ -89,6 +90,17 @@ export const accessChat = async (req, res) => {
       chat = await chat.populate('participants', 'name email avatarUrl');
     }
 
+    const io = req.app.get('io');
+    if (io) {
+      const participantsToNotify = chat.participants;
+      participantsToNotify.forEach(participant => {
+        const pidStr = participant._id ? participant._id.toString() : participant.toString();
+        if (pidStr !== userId) {
+          io.to(pidStr).emit('new_chat_created', chat);
+        }
+      });
+    }
+
     return res.status(200).json({ ok: true, chat });
   } catch (error) {
     console.error('Error en accessChat:', error);
@@ -120,6 +132,18 @@ export const createGroupChat = async (req, res) => {
     });
 
     const populatedChat = await chat.populate('participants', 'name email avatarUrl');
+
+    const io = req.app.get('io');
+    if (io) {
+      const participantsToNotify = populatedChat.participants;
+      participantsToNotify.forEach(participant => {
+        const pidStr = participant._id ? participant._id.toString() : participant.toString();
+        if (pidStr !== userId) {
+          io.to(pidStr).emit('new_chat_created', populatedChat);
+        }
+      });
+    }
+
     return res.status(201).json({ ok: true, chat: populatedChat });
   } catch (error) {
     console.error('Error en createGroupChat:', error);
@@ -216,9 +240,19 @@ export const sendAudioMessage = async (req, res) => {
 
     await Chat.findByIdAndUpdate(chatId, { lastMessage: newMessage._id });
 
+    const chat = await Chat.findById(chatId).select('participants');
+
     const io = req.app.get('io');
     if (io) {
       io.to(chatId.toString()).emit('receive_message', populatedMessage);
+
+      const receivers = chat.participants ? chat.participants : [];
+      receivers.forEach(pid => {
+        const pidStr = pid._id ? pid._id.toString() : pid.toString();
+        if (pidStr !== userId.toString()) {
+          io.to(pidStr).emit('message_received', populatedMessage);
+        }
+      });
     }
 
     return res.status(201).json({
@@ -266,9 +300,20 @@ export const sendFileMessage = async (req, res) => {
 
     const populatedMessage = await newMessage.populate('senderId', 'name email avatarUrl');
 
+    const chat = await Chat.findById(chatId).select('participants');
+    const participantIds = chat.participants.map(p => p.toString());
+
     const io = req.app.get('io');
     if (io) {
       io.to(chatId.toString()).emit('receive_message', populatedMessage);
+
+      const receivers = chat.participants ? chat.participants : participantIds;
+      receivers.forEach(pid => {
+        const pidStr = pid._id ? pid._id.toString() : pid.toString();
+        if (pidStr !== senderId.toString()) {
+          io.to(pidStr).emit('message_received', populatedMessage);
+        }
+      });
     }
 
     return res.status(201).json({
@@ -334,6 +379,14 @@ export const sendMessage = async (req, res) => {
     const io = req.app.get('io');
     if (io) {
       io.to(chatId.toString()).emit('receive_message', populatedMessage);
+
+      const receivers = chat.participants ? chat.participants : participantIds;
+      receivers.forEach(pid => {
+        const pidStr = pid._id ? pid._id.toString() : pid.toString();
+        if (pidStr !== senderId.toString()) {
+          io.to(pidStr).emit('message_received', populatedMessage);
+        }
+      });
     }
 
     const senderName = req.user?.name || 'Alguien';
@@ -435,6 +488,12 @@ export const editMessage = async (req, res) => {
     await message.save();
 
     const populatedMessage = await message.populate('senderId', 'name email avatarUrl');
+
+    const io = req.app.get('io');
+    if (io) {
+      io.to(message.chatId.toString()).emit('message_edited', populatedMessage);
+    }
+
     return res.status(200).json({ ok: true, message: populatedMessage });
   } catch (error) {
     console.error('Error en editMessage:', error);
@@ -459,11 +518,18 @@ export const deleteMessage = async (req, res) => {
       return res.status(404).json({ ok: false, msg: 'Mensaje no encontrado' });
     }
 
+    const io = req.app.get('io');
+    const chatIdStr = message.chatId.toString();
+
     if (type === 'for_me') {
       const deletedForStrs = message.deletedFor.map(id => id.toString());
       if (!deletedForStrs.includes(userId)) {
         message.deletedFor.push(userId);
         await message.save();
+      }
+
+      if (io) {
+        io.to(userId).emit('message_deleted', { messageId, chatId: chatIdStr, userId });
       }
     } else {
       if (message.senderId.toString() !== userId) {
@@ -472,11 +538,70 @@ export const deleteMessage = async (req, res) => {
       message.content = 'Mensaje eliminado';
       message.isDeleted = true;
       await message.save();
+
+      if (io) {
+        io.to(chatIdStr).emit('message_deleted', { messageId, chatId: chatIdStr, isDeleted: true });
+      }
     }
 
     return res.status(200).json({ ok: true, msg: 'Mensaje eliminado correctamente' });
   } catch (error) {
     console.error('Error en deleteMessage:', error);
     return res.status(500).json({ ok: false, msg: 'Error al eliminar mensaje' });
+  }
+};
+
+export const leaveGroupChat = async (req, res) => {
+  try {
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ ok: false, msg: 'Usuario no autenticado' });
+
+    const { chatId } = req.params;
+
+    const chat = await Chat.findById(chatId);
+    if (!chat) {
+      return res.status(404).json({ ok: false, msg: 'Chat no encontrado' });
+    }
+
+    if (!chat.isGroup) {
+      return res.status(400).json({ ok: false, msg: 'Solo puedes salir de chats grupales' });
+    }
+
+    const isParticipant = chat.participants.some(p => p.toString() === userId);
+    if (!isParticipant) {
+      return res.status(403).json({ ok: false, msg: 'No eres miembro de este grupo' });
+    }
+
+    // Remove from participants and admins
+    chat.participants = chat.participants.filter(p => p.toString() !== userId);
+    chat.admins = chat.admins.filter(a => a.toString() !== userId);
+
+    // Cascade to workspace if this chat is linked to one
+    if (chat.workspaceId) {
+      await Workspace.updateOne(
+        { _id: chat.workspaceId },
+        { $pull: { members: userId } }
+      );
+    }
+
+    await chat.save();
+
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`chat:${chatId}`).emit('group-member-left', {
+        chatId,
+        userId: userId.toString(),
+        remainingParticipants: chat.participants
+      });
+    }
+
+    return res.status(200).json({
+      ok: true,
+      msg: 'Has salido del grupo correctamente',
+      chat
+    });
+  } catch (error) {
+    console.error('Error en leaveGroupChat:', error);
+    return res.status(500).json({ ok: false, msg: 'Error al salir del grupo' });
   }
 };
