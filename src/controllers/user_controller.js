@@ -274,7 +274,7 @@ export const updatePushToken = async (req, res) => {
 
     await User.findByIdAndUpdate(userId, { pushToken });
 
-    return res.status(200).json({ ok: true, msg: 'Push token actualizado correctamente' });
+    return res.status(200).json({ ok: true, msg: 'Push token actualizado correctamente', token: pushToken });
   } catch (error) {
     console.error('Error en updatePushToken:', error);
     return res.status(500).json({ ok: false, msg: 'Error al actualizar push token' });

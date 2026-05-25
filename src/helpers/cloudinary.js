@@ -47,3 +47,13 @@ export const uploadBase64ToCloudinary = async (base64, folder = 'VirtualDesk_AI'
     public_id: result.public_id
   };
 };
+
+export const deleteFileFromCloudinary = async (publicId) => {
+  try {
+    const result = await cloudinary.uploader.destroy(publicId);
+    return result;
+  } catch (error) {
+    console.error('Error en Cloudinary destroy:', error);
+    throw error;
+  }
+};

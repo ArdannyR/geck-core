@@ -2,7 +2,7 @@ import Item from '../models/item.js';
 import User from '../models/User.js';
 import Workspace from '../models/Workspace.js';
 import mongoose from 'mongoose';
-import { uploadFileToCloudinary } from '../helpers/cloudinary.js';
+import { uploadFileToCloudinary, deleteFileFromCloudinary } from '../helpers/cloudinary.js';
 
 // getDesktop, createItem, uploadFileItem, getItemById, updateBulkPositions, updateItem, deleteItem, getAllItems
 
@@ -243,6 +243,21 @@ export const deleteItem = async (req, res) => {
     }
 
     const idsArray = Array.from(toDelete);
+
+    const itemsWithFiles = await Item.find({ 
+      _id: { $in: idsArray }, 
+      publicId: { $ne: null } 
+    }).select('publicId').session(session).lean();
+
+    for (const fileItem of itemsWithFiles) {
+      try {
+
+        await deleteFileFromCloudinary(fileItem.publicId);
+      } catch (cloudErr) {
+        console.error(`Error eliminando archivo ${fileItem.publicId} de Cloudinary:`, cloudErr);
+      }
+    }
+
     await Item.deleteMany({ _id: { $in: idsArray }, userId }).session(session);
 
     await session.commitTransaction();
@@ -314,8 +329,17 @@ export const updateItem = async (req, res) => {
 
     // 4. Actualizar Contenido (Notas/Código)
     if (content !== undefined) {
-      item.content = content;
-      isUpdated = true;
+      // Validar que solo notas o código puedan tener texto interno
+      if (item.type === 'note' || item.type === 'code') {
+        item.content = content;
+        isUpdated = true;
+      } else {
+        // Opcional: Si intentan modificar el contenido de un archivo o carpeta, devuelves un error.
+        return res.status(400).json({ 
+          ok: false, 
+          msg: `No se puede modificar el texto interno de un ítem tipo '${item.type}'` 
+        });
+      }
     }
 
     // 5. Compartir (Solo el dueño puede invitar a otros)
