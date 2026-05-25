@@ -126,7 +126,7 @@ export const resetPassword = async (req, res) => {
 
 export const loginUser = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, platform } = req.body;
 
     if (Object.values(req.body).includes('')) {
       return res.status(400).json({ msg: 'Debes llenar todos los campos' });
@@ -142,7 +142,7 @@ export const loginUser = async (req, res) => {
     const isPasswordCorrect = await userDB.matchPassword(password);
     if (!isPasswordCorrect) return res.status(401).json({ msg: 'El password no es correcto' });
 
-    const token = createJWT(userDB._id, userDB.role);
+    const token = createJWT(userDB._id, userDB.role, platform);
 
     res.status(200).json({
       token,

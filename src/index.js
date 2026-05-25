@@ -100,20 +100,13 @@ const startServer = async () => {
         message.deliveredTo.push(userId);
         await message.save();
 
+        const payload = { chatId, messageId, deliveredTo: message.deliveredTo, readBy: message.readBy };
         const chat = await Chat.findById(chatId);
-        io.to(chatId.toString()).emit('message_status_update', {
-          messageId,
-          deliveredTo: message.deliveredTo,
-          readBy: message.readBy
-        });
+        io.to(chatId.toString()).emit('message_status_update', payload);
         if (chat) {
           chat.participants.forEach(pid => {
             const pidStr = pid._id ? pid._id.toString() : pid.toString();
-            io.to(pidStr).emit('message_status_update', {
-              messageId,
-              deliveredTo: message.deliveredTo,
-              readBy: message.readBy
-            });
+            io.to(pidStr).emit('message_status_update', payload);
           });
         }
       } catch (error) {
@@ -133,11 +126,12 @@ const startServer = async () => {
         const updatedMessages = await Message.find({ chatId, senderId: { $ne: userId } })
                                              .select('_id deliveredTo readBy');
         const chat = await Chat.findById(chatId);
-        io.to(chatId.toString()).emit('chat_status_bulk_update', { updatedMessages });
+        const payload = { chatId, updatedMessages };
+        io.to(chatId.toString()).emit('chat_status_bulk_update', payload);
         if (chat) {
           chat.participants.forEach(pid => {
             const pidStr = pid._id ? pid._id.toString() : pid.toString();
-            io.to(pidStr).emit('chat_status_bulk_update', { updatedMessages });
+            io.to(pidStr).emit('chat_status_bulk_update', payload);
           });
         }
       } catch (error) {
@@ -250,6 +244,15 @@ const startServer = async () => {
           break;
         }
       }
+
+      // Clean up any remaining reference to this socket in case of duplicates
+      for (let [userId, sockId] of onlineUsers.entries()) {
+        if (sockId === socket.id) {
+          onlineUsers.delete(userId);
+        }
+      }
+
+      socket.removeAllListeners();
 
       if (disconnectedUserId) {
         socket.broadcast.emit('user_offline', { userId: disconnectedUserId });

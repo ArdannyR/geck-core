@@ -359,11 +359,18 @@ export const sendMessage = async (req, res) => {
       return res.status(403).json({ ok: false, msg: 'No eres participante de este chat' });
     }
 
+    if (clientTimestamp) {
+      const existing = await Message.findOne({ chatId, senderId, clientTimestamp }).populate('senderId', 'name email avatarUrl');
+      if (existing) {
+        return res.status(200).json({ ok: true, message: existing, fromDup: true });
+      }
+    }
+
     const messageData = {
       chatId,
       senderId,
       content,
-      ...(clientTimestamp && { createdAt: new Date(clientTimestamp) })
+      ...(clientTimestamp && { clientTimestamp, createdAt: new Date(clientTimestamp) })
     };
 
     const message = await Message.create(messageData);

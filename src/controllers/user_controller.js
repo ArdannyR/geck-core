@@ -81,7 +81,7 @@ export const updatePreferences = async (req, res) => {
     const userId = req.user._id;
     
     // 1. EXTRACCIÓN SEGURA
-    const { theme, accent, wallpaperUrl } = req.body || {};
+    const { theme, accent, wallpaperUrl, phoneWallpaperUrl } = req.body || {};
 
     const userDB = await User.findById(userId);
     if (!userDB) return res.status(404).json({ ok: false, msg: 'Usuario no encontrado' });
@@ -90,6 +90,7 @@ export const updatePreferences = async (req, res) => {
     if (theme && ['light', 'dark', 'system'].includes(theme)) userDB.preferences.theme = theme;
     if (accent) userDB.preferences.accent = accent;
     if (wallpaperUrl !== undefined) userDB.preferences.wallpaperUrl = wallpaperUrl;
+    if (phoneWallpaperUrl !== undefined) userDB.preferences.phoneWallpaperUrl = phoneWallpaperUrl;
 
     // 3. Procesamiento de archivos (Cloudinary)
     if (req.files) {
