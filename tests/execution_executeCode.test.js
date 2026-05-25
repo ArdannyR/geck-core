@@ -27,7 +27,7 @@ describe('Execution Controller - executeCode', () => {
   });
 
   test('execution - 1. Debería retornar error 400 si no se envía el código o el lenguaje', async () => {
-    req.body = { code: 'console.log("Hola");' }; // Se envía código, pero falta el lenguaje
+    req.body = { code: 'console.log("Hola");' };
 
     await executeCode(req, res);
 

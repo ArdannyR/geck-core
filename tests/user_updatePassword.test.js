@@ -26,7 +26,7 @@ describe('User Controller - updatePassword', () => {
   });
 
   test('user - 3. Debería retornar error 400 si falta la contraseña actual o nueva', async () => {
-    req.body = { passwordactual: 'password_actual' }; // Intencionalmente se omite passwordnuevo
+    req.body = { passwordactual: 'password_actual' }; 
 
     await updatePassword(req, res);
 

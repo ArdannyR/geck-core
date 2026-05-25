@@ -30,7 +30,7 @@ describe('Workspace Controller - leaveWorkspace', () => {
 
   test('workspace -3. Debería retornar error 400 si el usuario dueño intenta salir del workspace en vez de eliminarlo', async () => {
     const mockWorkspace = {
-      owner: 'owner123' // El ID coincide con el usuario en req.user._id
+      owner: 'owner123' 
     };
     mockWorkspaceFindById.mockResolvedValue(mockWorkspace);
 

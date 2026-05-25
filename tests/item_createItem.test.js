@@ -19,7 +19,7 @@ describe('Item Controller - createItem', () => {
     req = { 
       user: { _id: 'user123' }, 
       body: {},
-      app: { get: jest.fn() } // Para mockear socket.io si fuera necesario
+      app: { get: jest.fn() } 
     };
     res = {
       status: jest.fn().mockReturnThis(),
@@ -28,7 +28,7 @@ describe('Item Controller - createItem', () => {
   });
 
   test('item - 1. Debería retornar error 400 si el tipo de ítem es "link" pero no se proporciona una URL', async () => {
-    req.body = { type: 'link', name: 'Mi Enlace' }; // Falta la propiedad 'url'
+    req.body = { type: 'link', name: 'Mi Enlace' }; 
 
     await createItem(req, res);
 

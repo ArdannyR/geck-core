@@ -19,7 +19,7 @@ describe('AI Controller - chatWithAssistant', () => {
   });
 
   test('ai - 1. Debería retornar error 400 si no se envía el campo "mensaje" en el body', async () => {
-    req.body = {}; // Se omite intencionalmente el mensaje
+    req.body = {}; 
 
     await chatWithAssistant(req, res);
 
