@@ -194,9 +194,15 @@ export const markChatAsRead = async (req, res) => {
       $set: { [`unreadCounts.${userId}`]: 0 }
     });
 
+    const chatDoc = await Chat.findById(chatId);
     const io = req.app.get('io');
-    if (io) {
-      io.to(`chat:${chatId}`).emit('chat_read', { chatId, userId });
+    if (io && chatDoc) {
+      io.to(chatId.toString()).emit('chat_read', { chatId, userId });
+
+      chatDoc.participants.forEach(pid => {
+        const pidStr = pid._id ? pid._id.toString() : pid.toString();
+        io.to(pidStr).emit('chat_read', { chatId, userId });
+      });
     }
 
     return res.status(200).json({ ok: true, msg: 'Mensajes marcados como leídos' });

@@ -253,7 +253,7 @@ export const searchUsers = async (req, res) => {
         { name: { $regex: q, $options: 'i' } }
       ]
     })
-      .select('name email _id')
+      .select('name email _id avatarUrl')
       .limit(5);
 
     return res.status(200).json({ ok: true, users });

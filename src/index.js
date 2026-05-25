@@ -99,11 +99,23 @@ const startServer = async () => {
         if (!message || message.deliveredTo.includes(userId)) return;
         message.deliveredTo.push(userId);
         await message.save();
-        socket.to(chatId.toString()).emit('message_status_update', {
+
+        const chat = await Chat.findById(chatId);
+        io.to(chatId.toString()).emit('message_status_update', {
           messageId,
           deliveredTo: message.deliveredTo,
           readBy: message.readBy
         });
+        if (chat) {
+          chat.participants.forEach(pid => {
+            const pidStr = pid._id ? pid._id.toString() : pid.toString();
+            io.to(pidStr).emit('message_status_update', {
+              messageId,
+              deliveredTo: message.deliveredTo,
+              readBy: message.readBy
+            });
+          });
+        }
       } catch (error) {
         console.error('Error en mark_delivered:', error);
       }
@@ -120,7 +132,14 @@ const startServer = async () => {
         });
         const updatedMessages = await Message.find({ chatId, senderId: { $ne: userId } })
                                              .select('_id deliveredTo readBy');
-        socket.to(chatId.toString()).emit('chat_status_bulk_update', { updatedMessages });
+        const chat = await Chat.findById(chatId);
+        io.to(chatId.toString()).emit('chat_status_bulk_update', { updatedMessages });
+        if (chat) {
+          chat.participants.forEach(pid => {
+            const pidStr = pid._id ? pid._id.toString() : pid.toString();
+            io.to(pidStr).emit('chat_status_bulk_update', { updatedMessages });
+          });
+        }
       } catch (error) {
         console.error('Error en mark_read:', error);
       }
