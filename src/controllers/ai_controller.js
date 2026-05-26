@@ -90,20 +90,24 @@ export const semanticSearch = async (req, res) => {
       return res.status(400).json({ ok: false, msg: 'La consulta es obligatoria' });
     }
 
+    // --- INICIO DE LOS CAMBIOS ---
     const items = await Item.find({
       userId: userId,
-      type: { $in: ['note', 'code', 'file'] }
+      type: { $in: ['note', 'code'] } // Se quitó 'file' para evitar PDFs sin texto extraído
     });
 
-    if (!items || items.length === 0) {
+    const archivosParaIA = items
+      .filter(item => item.content && item.content.trim().length > 20) // Solo items con contenido real y útil
+      .map(item => ({
+        id: item._id.toString(),
+        nombre: item.name,
+        contenido: item.content
+      }));
+
+    if (archivosParaIA.length === 0) {
       return res.status(200).json({ ok: true, data: [] });
     }
-
-    const archivosParaIA = items.map(item => ({
-      id: item._id.toString(),
-      nombre: item.name,
-      contenido: item.content || `Archivo tipo ${item.type} llamado ${item.name}`
-    }));
+    // --- FIN DE LOS CAMBIOS ---
 
     const pythonUrl = `${process.env.PYTHON_MICROSERVICE_URL}/buscar`;
 
