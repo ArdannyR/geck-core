@@ -147,9 +147,12 @@ export const loginUser = async (req, res) => {
     res.status(200).json({
       token,
       nombre: userDB.name,
+      name: userDB.name,
       rol: userDB.role,
       _id: userDB._id,
-      email: userDB.email
+      email: userDB.email,
+      avatarUrl: userDB.avatarUrl,
+      preferences: userDB.preferences
     });
   } catch (error) {
     res.status(500).json({ msg: `Error en el servidor - ${error.message}` });

@@ -80,44 +80,46 @@ export const updatePreferences = async (req, res) => {
   try {
     const userId = req.user._id;
     
-    // 1. EXTRACCIÓN SEGURA
-    const { theme, accent, wallpaperUrl, phoneWallpaperUrl } = req.body || {};
+    // 1. Extracción de campos (incluimos 'type' que viene de la app móvil)
+    const { theme, accent, wallpaperUrl, phoneWallpaperUrl, type } = req.body || {};
 
     const userDB = await User.findById(userId);
     if (!userDB) return res.status(404).json({ ok: false, msg: 'Usuario no encontrado' });
 
-    // 2. Actualizar campos de texto SOLO si existen
+    // 2. Actualizar campos de texto (si se envían)
     if (theme && ['light', 'dark', 'system'].includes(theme)) userDB.preferences.theme = theme;
     if (accent) userDB.preferences.accent = accent;
     if (wallpaperUrl !== undefined) userDB.preferences.wallpaperUrl = wallpaperUrl;
     if (phoneWallpaperUrl !== undefined) userDB.preferences.phoneWallpaperUrl = phoneWallpaperUrl;
 
-    // 3. Procesamiento de archivos (Cloudinary)
-    if (req.files) {
-      if (req.files.avatar) {
+    // 3. Lógica reciclada: Procesamiento de imagen individual desde Multer
+    if (req.file) {
+      if (!type || !['avatar', 'wallpaper'].includes(type)) {
+        return res.status(400).json({ ok: false, msg: 'Para subir una imagen, "type" debe ser "avatar" o "wallpaper"' });
+      }
+
+      const folder = type === 'avatar' ? 'VirtualDesk_Avatars' : 'PhoneWallpapers';
+      const { secure_url, public_id } = await uploadFileToCloudinary(req.file.path, folder);
+
+      if (type === 'avatar') {
+        // Eliminar avatar anterior si existe
         if (userDB.avatarPublicId) await cloudinary.uploader.destroy(userDB.avatarPublicId).catch(() => {});
-        const { secure_url, public_id } = await uploadFileToCloudinary(req.files.avatar.tempFilePath, 'VirtualDesk_Avatars');
-        userDB.avatarUrl = secure_url; 
+        userDB.avatarUrl = secure_url;
         userDB.avatarPublicId = public_id;
-      }
-      if (req.files.wallpaper) {
-        if (userDB.preferences.wallpaperPublicId) await cloudinary.uploader.destroy(userDB.preferences.wallpaperPublicId).catch(() => {});
-        const { secure_url, public_id } = await uploadFileToCloudinary(req.files.wallpaper.tempFilePath, 'VirtualDesk_Wallpapers');
-        userDB.preferences.wallpaperUrl = secure_url;
-        userDB.preferences.wallpaperPublicId = public_id;
-      }
-      if (req.files.phoneWallpaper) {
-        if (userDB.preferences.phoneWallpaperPublicId) await cloudinary.uploader.destroy(userDB.preferences.phoneWallpaperPublicId).catch(() => {});
-        const { secure_url, public_id } = await uploadFileToCloudinary(req.files.phoneWallpaper.tempFilePath, 'PhoneWallpapers');
+      } else {
+        // Eliminar wallpaper de celular anterior si existe
+        if (userDB.preferences.phoneWallpaperPublicId) {
+          await cloudinary.uploader.destroy(userDB.preferences.phoneWallpaperPublicId).catch(() => {});
+        }
         userDB.preferences.phoneWallpaperUrl = secure_url;
         userDB.preferences.phoneWallpaperPublicId = public_id;
       }
     }
 
-    // 4. Guardado final
+    // 4. Guardado final en la base de datos
     await userDB.save();
 
-    // 5. Emitir a Sockets
+    // 5. Emitir cambios por Sockets
     const io = req.app.get('io');
     if (io) {
       io.to(`user:${userId}`).emit('preferences-updated', {
@@ -131,7 +133,7 @@ export const updatePreferences = async (req, res) => {
 
     return res.status(200).json({ 
       ok: true, 
-      msg: 'Preferencias e imágenes actualizadas correctamente', 
+      msg: 'Preferencias actualizadas correctamente', 
       preferences: userDB.preferences,
       avatarUrl: userDB.avatarUrl,
     });

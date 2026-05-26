@@ -1,14 +1,17 @@
 import { Router } from 'express';
-import { getProfile, updatePassword, updateProfile, updatePreferences, deleteAccount, searchUsers, updatePushToken } from '../controllers/user_controller.js';
+import multer from 'multer';
+import { getProfile, updatePassword, updateProfile, updatePreferences, deleteAccount, searchUsers, updatePushToken, updateImage } from '../controllers/user_controller.js';
 import { verifyAuth } from '../middlewares/auth.js';
 
+const upload = multer({ dest: 'uploads/' });
 const router = Router();
+
 router.use(verifyAuth);
 
 router.get('/profile', getProfile);
 router.patch('/update-password', updatePassword);
 router.patch('/profile/:id', updateProfile);
-router.patch('/preferences', updatePreferences);
+router.patch('/preferences', upload.single('image'), updatePreferences);
 router.delete('/delete-account', deleteAccount);
 router.get('/search', searchUsers); 
 router.patch('/update-push-token', updatePushToken); 
