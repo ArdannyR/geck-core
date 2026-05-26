@@ -251,12 +251,10 @@ export const sendWorkspaceInviteEmail = ({ to, inviterName, workspaceName, token
   );
 };
 
-export const sendDesktopShareEmail = ({ to, ownerName, token }) => {
-  const acceptUrl = `${process.env.URL_FRONTEND}/accept-desktop/${token}`;
-
+export const sendDesktopShareEmail = ({ to, ownerName }) => {
   return sendMail(
     to,
-    `${ownerName} quiere compartir su escritorio contigo en Geck`,
+    `${ownerName} compartió su escritorio contigo en Geck`,
     `
     <!DOCTYPE html>
     <html lang="es">
@@ -283,21 +281,12 @@ export const sendDesktopShareEmail = ({ to, ownerName, token }) => {
               </tr>
 
               <tr>
-                <td style="padding: 24px 48px 8px; text-align:center;">
-                  <h2 style="color:#1e1b4b; font-size:22px; font-weight:700; margin:0 0 12px;">¡Te invitaron a un escritorio!</h2>
-                  <p style="color:#6b7280; font-size:15px; line-height:1.7; margin:0 0 28px;">
-                    <strong style="color:#374151;">${ownerName}</strong> quiere darte acceso a su escritorio personal en Geck.
-                    Haz clic abajo para aceptar la invitación.
+                <td style="padding: 24px 48px 32px; text-align:center;">
+                  <h2 style="color:#1e1b4b; font-size:22px; font-weight:700; margin:0 0 12px;">¡Tienes un nuevo escritorio!</h2>
+                  <p style="color:#6b7280; font-size:15px; line-height:1.7; margin:0;">
+                    <strong style="color:#374151;">${ownerName}</strong> ha compartido su escritorio personal contigo.
+                    Ya puedes verlo desde tu cuenta en Geck.
                   </p>
-                </td>
-              </tr>
-
-              <tr>
-                <td align="center" style="padding: 0 48px 32px;">
-                  <a href="${acceptUrl}"
-                     style="display:inline-block; padding:14px 36px; background:linear-gradient(135deg, #6366f1, #8b5cf6); color:#ffffff; text-decoration:none; border-radius:50px; font-size:15px; font-weight:600; letter-spacing:0.3px; box-shadow:0 4px 14px rgba(99,102,241,0.4);">
-                    Aceptar acceso al escritorio →
-                  </a>
                 </td>
               </tr>
 
@@ -305,7 +294,7 @@ export const sendDesktopShareEmail = ({ to, ownerName, token }) => {
                 <td style="padding: 0 48px 16px;">
                   <div style="border-top: 1px solid #f0eeff; padding-top:20px;">
                     <p style="color:#9ca3af; font-size:12px; text-align:center; margin:0;">
-                      Este enlace expira en <strong>48 horas</strong>. Si no esperabas esta invitación, puedes ignorarlo.
+                      Si no conoces a esta persona, puedes ignorar este correo.
                     </p>
                   </div>
                 </td>
