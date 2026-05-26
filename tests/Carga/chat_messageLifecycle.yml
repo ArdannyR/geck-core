@@ -1,8 +1,8 @@
 config:
   target: "http://localhost:3000"
   variables:
-    token: "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjZhMTQ4ZTE2NjcyNDVmNjczNTRhNDMyYiIsInJvbGUiOiJ1c2VyIiwiaWF0IjoxNzc5NzYwMDExLCJleHAiOjE3Nzk4NDY0MTF9.DU8oHD1aAOYX-ccVye1S3OviETYRTM-ld_rXaVZ1Vy0"
-    chatId: "6a14a72a3c7618a228b4ff66" 
+    token: "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjZhMTQ2ZjJmY2Y5YmJmZjJlYTI4YmMzNyIsInJvbGUiOiJzdHVkZW50IiwiaWF0IjoxNzc5NzY0Mzc2LCJleHAiOjE3Nzk4NTA3NzZ9.4waWlPLTODs0cyZAuH5ZGSmcJ5P5redXPJreJl767ic"
+    chatId: "6a150e5290b1267befd65d3d" 
   phases:
     - duration: 30
       arrivalRate: 2
@@ -27,9 +27,13 @@ scenarios:
           capture:
             - json: "$.message._id"
               as: "messageId"
+          expect:
+            - statusCode: 201
       - delete:
           url: "/api/chat/message/{{ messageId }}"
           headers:
             Authorization: "{{ token }}"
           json:
             type: "for_all"
+          expect:
+            - statusCode: 200

@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import bcrypt from 'bcryptjs';
+import bcrypt from 'bcrypt';
 
 const userSchema = new mongoose.Schema(
   {
@@ -85,6 +85,8 @@ const userSchema = new mongoose.Schema(
     timestamps: true
   }
 );
+
+userSchema.index({ name: 'text', email: 'text' });
 
 userSchema.methods.encryptPassword = async function(password) {
   const salt = await bcrypt.genSalt(10);

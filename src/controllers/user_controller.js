@@ -250,8 +250,8 @@ export const searchUsers = async (req, res) => {
 
     const users = await User.find({
       $or: [
-        { email: { $regex: q, $options: 'i' } },
-        { name: { $regex: q, $options: 'i' } }
+        { email: { $regex: `^${q}`, $options: 'i' } },
+        { name: { $regex: `^${q}`, $options: 'i' } }
       ]
     })
       .select('name email _id avatarUrl')

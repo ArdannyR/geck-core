@@ -48,17 +48,14 @@ export const getDesktop = async (req, res) => {
       query.$or = [{ parentId: null }, { parentId: { $exists: false } }];
     }
 
-    let items = [];
-    if (!isRemoteMode && (!folderId || folderId === 'null' || folderId === 'undefined')) {
-      items = await Item.find({
-        $or: [
-          query,
-          { 'sharedWith.userId': myId }
-        ]
-      }).lean();
-    } else {
-      items = await Item.find(query).lean();
-    }
+    const [items, ownerSettings] = await Promise.all([
+      Item.find(
+        !isRemoteMode && (!folderId || folderId === 'null' || folderId === 'undefined')
+          ? { $or: [query, { 'sharedWith.userId': myId }] }
+          : query
+      ).lean(),
+      User.findById(targetUserId).select('preferences').lean()
+    ]);
 
     if (items.length > 0) {
       items = items.map(item => {
@@ -69,8 +66,6 @@ export const getDesktop = async (req, res) => {
         return item;
       });
     }
-
-    const ownerSettings = await User.findById(targetUserId).select('preferences').lean();
 
     return res.status(200).json({
       ok: true,
@@ -217,6 +212,19 @@ export const deleteItem = async (req, res) => {
       await session.abortTransaction();
       session.endSession();
       return res.status(404).json({ ok: false, msg: 'No existe este ítem o no pertenece al usuario' });
+    }
+
+    // NUEVA RUTA RÁPIDA: si no tiene publicId y no tiene hijos, skip the transaction
+    const hasChildren = await Item.exists({ parentId: id, userId });
+    if (!root.publicId && !hasChildren) {
+      await session.abortTransaction();
+      session.endSession();
+      await Item.deleteOne({ _id: id, userId });
+      const io = req.app.get('io');
+      if (io) {
+        io.to(`user:${userId}`).emit('item-deleted', { id, deleted: 1, ids: [String(id)] });
+      }
+      return res.status(200).json({ ok: true, msg: 'Ítem eliminado correctamente', deleted: 1 });
     }
 
     const toDelete = new Set([String(id)]);

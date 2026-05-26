@@ -18,4 +18,4 @@ scenarios:
           url: "/api/auth/login"
           json:
             email: "avproject049@gmail.com"
-            password: "arda-test"
+            password: "000000"

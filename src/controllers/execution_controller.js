@@ -2,6 +2,9 @@ import { exec } from 'child_process';
 import fs from 'fs-extra';
 import path from 'path';
 
+const MAX_CONCURRENT_EXECUTIONS = 10;
+let activeExecutions = 0;
+
 export const executeCode = async (req, res) => {
   try {
     const { code, language } = req.body;
@@ -9,6 +12,14 @@ export const executeCode = async (req, res) => {
     if (!code || !language) {
       return res.status(400).json({ ok: false, msg: 'El código y el lenguaje son obligatorios' });
     }
+
+    if (activeExecutions >= MAX_CONCURRENT_EXECUTIONS) {
+      return res.status(429).json({
+        ok: false,
+        msg: 'El servidor está procesando demasiadas ejecuciones. Intenta en unos segundos.'
+      });
+    }
+    activeExecutions++;
 
     const execId = `run_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
     const execDir = path.join(process.cwd(), 'uploads', execId);
@@ -51,6 +62,7 @@ export const executeCode = async (req, res) => {
     }
 
     exec(command, { timeout: 8000 }, async (error, stdout, stderr) => {
+      activeExecutions--;
       await fs.remove(execDir).catch(() => {});
 
       if (error) {
@@ -68,6 +80,7 @@ export const executeCode = async (req, res) => {
       });
     });
   } catch (error) {
+    activeExecutions--;
     console.error('Error en executeCode:', error);
     return res.status(500).json({ ok: false, msg: 'Error interno al procesar el código' });
   }

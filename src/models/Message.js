@@ -66,5 +66,6 @@ const messageSchema = new mongoose.Schema(
 );
 
 messageSchema.index({ chatId: 1, createdAt: -1 });
+messageSchema.index({ chatId: 1, deletedFor: 1, createdAt: -1 });
 
 export default mongoose.model('Message', messageSchema);

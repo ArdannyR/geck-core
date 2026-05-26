@@ -1,7 +1,7 @@
 config:
   target: "http://localhost:3000"
   variables:
-    token: "Bearer <TU_TOKEN_JWT_AQUI>"
+    token: "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjZhMTQ2ZjJmY2Y5YmJmZjJlYTI4YmMzNyIsInJvbGUiOiJzdHVkZW50IiwiaWF0IjoxNzc5NzY1Nzg1LCJleHAiOjE3Nzk4NTIxODV9.AHabsqQUgwtBnzcJYQmTaIYuo2AUgBh7ipHfhfi0My8"
   phases:
     - duration: 30
       arrivalRate: 2
@@ -22,9 +22,9 @@ scenarios:
             Authorization: "{{ token }}"
           json:
             items:
-              - id: "<ID_ITEM_1>" # Reemplazar con ID real
+              - id: "6a15158f0c7df19116f65d79" 
                 x: 150
                 y: 200
-              - id: "<ID_ITEM_2>" # Reemplazar con ID real
+              - id: "6a15158f0c7df19116f65d7b" 
                 x: 300
                 y: 400

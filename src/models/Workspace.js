@@ -17,4 +17,6 @@ const workspaceSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+workspaceSchema.index({ members: 1 });
+
 export default mongoose.model('Workspace', workspaceSchema);

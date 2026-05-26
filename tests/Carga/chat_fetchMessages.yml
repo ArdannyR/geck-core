@@ -1,8 +1,8 @@
 config:
   target: "http://localhost:3000"
   variables:
-    token: "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjZhMTQ4ZTE2NjcyNDVmNjczNTRhNDMyYiIsInJvbGUiOiJ1c2VyIiwiaWF0IjoxNzc5NzYwMDExLCJleHAiOjE3Nzk4NDY0MTF9.DU8oHD1aAOYX-ccVye1S3OviETYRTM-ld_rXaVZ1Vy0"
-    chatId: "6a14a72a3c7618a228b4ff66" 
+    token: "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjZhMTQ2ZjJmY2Y5YmJmZjJlYTI4YmMzNyIsInJvbGUiOiJzdHVkZW50IiwiaWF0IjoxNzc5NzY1Nzg1LCJleHAiOjE3Nzk4NTIxODV9.AHabsqQUgwtBnzcJYQmTaIYuo2AUgBh7ipHfhfi0My8"
+    chatId: "6a150e5290b1267befd65d3d" 
   phases:
     - duration: 30
       arrivalRate: 2
@@ -18,6 +18,6 @@ scenarios:
   - name: "Carga de historial de mensajes (Paginación)"
     flow:
       - get:
-          url: "/api/chat/{{ chatId }}/chat?page=1&limit=50"
+          url: "/api/chat/{{ chatId }}/chat"
           headers:
             Authorization: "{{ token }}"
