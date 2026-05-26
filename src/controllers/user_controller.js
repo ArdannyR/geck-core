@@ -255,7 +255,8 @@ export const searchUsers = async (req, res) => {
       ]
     })
       .select('name email _id avatarUrl')
-      .limit(5);
+      .limit(5)
+      .lean();
 
     return res.status(200).json({ ok: true, users });
   } catch (error) {

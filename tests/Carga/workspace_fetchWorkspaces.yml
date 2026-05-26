@@ -17,6 +17,6 @@ scenarios:
   - name: "Obtener workspaces con populate múltiple"
     flow:
       - get:
-          url: "/api/workspaces"
+          url: "/api/workspaces/fetch-user-workspaces"
           headers:
             Authorization: "{{ token }}"

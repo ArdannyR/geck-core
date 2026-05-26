@@ -1,7 +1,7 @@
 config:
   target: "http://localhost:3000"
   variables:
-    token: "Bearer <TU_TOKEN_JWT_AQUI>"
+    token: "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjZhMTQ4ZTE2NjcyNDVmNjczNTRhNDMyYiIsInJvbGUiOiJ1c2VyIiwiaWF0IjoxNzc5NzYwMDExLCJleHAiOjE3Nzk4NDY0MTF9.DU8oHD1aAOYX-ccVye1S3OviETYRTM-ld_rXaVZ1Vy0"
   phases:
     - duration: 30
       arrivalRate: 2

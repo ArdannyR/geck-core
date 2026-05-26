@@ -402,23 +402,25 @@ export const sendMessage = async (req, res) => {
       });
     }
 
+    // Responder INMEDIATAMENTE al cliente
+    res.status(201).json({ ok: true, message: populatedMessage });
+
+    // Ejecutar notificaciones Push en segundo plano
     const senderName = req.user?.name || 'Alguien';
     const participantsToNotify = participantIds.filter(pid => pid !== senderId);
-    if (participantsToNotify.length > 0) {
-      const users = await User.find({ _id: { $in: participantsToNotify } }).select('pushToken');
-      users.forEach(user => {
-        if (user.pushToken) {
-          sendPushNotification(
-            user.pushToken,
-            senderName,
-            content,
-            { chatId }
-          );
-        }
-      });
-    }
 
-    return res.status(201).json({ ok: true, message: populatedMessage });
+    if (participantsToNotify.length > 0) {
+      User.find({ _id: { $in: participantsToNotify }, pushToken: { $exists: true, $ne: null } })
+        .select('pushToken')
+        .lean()
+        .then(users => {
+          const pushPromises = users.map(user => 
+            sendPushNotification(user.pushToken, senderName, content, { chatId })
+          );
+          Promise.allSettled(pushPromises);
+        })
+        .catch(err => console.error('Error enviando push en background:', err));
+    }
   } catch (error) {
     console.error('Error en sendMessage:', error);
     return res.status(500).json({ ok: false, msg: 'Error al enviar mensaje' });
@@ -435,42 +437,28 @@ export const fetchMessages = async (req, res) => {
     const limit = parseInt(req.query.limit) || 20;
     const skip = (page - 1) * limit;
 
-    const chat = await Chat.findById(chatId);
-    if (!chat) {
-      return res.status(404).json({ ok: false, msg: 'Chat no encontrado' });
-    }
+    const chat = await Chat.findById(chatId).select('participants').lean(); 
+    if (!chat) return res.status(404).json({ ok: false, msg: 'Chat no encontrado' });
 
     const participantIds = chat.participants.map(p => p.toString());
-    if (!participantIds.includes(userId)) {
-      return res.status(403).json({ ok: false, msg: 'No eres participante de este chat' });
-    }
+    if (!participantIds.includes(userId)) return res.status(403).json({ ok: false, msg: 'No eres participante de este chat' });
 
-    const messages = await Message.find({
-      chatId,
-      deletedFor: { $ne: userId }
-    })
-      .populate('senderId', 'name email avatarUrl')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit);
-
-    const total = await Message.countDocuments({
-      chatId,
-      deletedFor: { $ne: userId }
-    });
+    const [messages, total] = await Promise.all([
+      Message.find({ chatId, deletedFor: { $ne: userId } })
+        .populate('senderId', 'name email avatarUrl')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(), 
+      Message.countDocuments({ chatId, deletedFor: { $ne: userId } })
+    ]);
 
     return res.status(200).json({
       ok: true,
       messages,
-      pagination: {
-        page,
-        limit,
-        total,
-        pages: Math.ceil(total / limit)
-      }
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) }
     });
   } catch (error) {
-    console.error('Error en fetchMessages:', error);
     return res.status(500).json({ ok: false, msg: 'Error al obtener mensajes' });
   }
 };

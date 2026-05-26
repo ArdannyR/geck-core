@@ -1,5 +1,7 @@
 config:
   target: "http://localhost:3000"
+  variables:
+    token: "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjZhMTQ4ZTE2NjcyNDVmNjczNTRhNDMyYiIsInJvbGUiOiJ1c2VyIiwiaWF0IjoxNzc5NzYwMDExLCJleHAiOjE3Nzk4NDY0MTF9.DU8oHD1aAOYX-ccVye1S3OviETYRTM-ld_rXaVZ1Vy0"
   phases:
     - duration: 30
       arrivalRate: 2
@@ -15,7 +17,9 @@ scenarios:
   - name: "Compilación de código JavaScript rápido"
     flow:
       - post:
-          url: "/api/execution/run" # Ajustar a tu ruta real
+          url: "/api/execute/run" 
+          headers:
+            Authorization: "{{ token }}" 
           json:
             language: "javascript"
             code: "console.log('Test de carga exitoso');"

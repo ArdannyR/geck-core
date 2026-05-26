@@ -16,8 +16,8 @@ config:
 scenarios:
   - name: "Actualizar múltiples posiciones a la vez"
     flow:
-      - put:
-          url: "/api/items/bulk-positions"
+      - patch:
+          url: "/api/items/positions/bulk"
           headers:
             Authorization: "{{ token }}"
           json:

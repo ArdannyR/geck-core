@@ -33,7 +33,7 @@ export const getDesktop = async (req, res) => {
     const targetUserId = isRemoteMode ? remoteUserId : myId;
 
     if (isRemoteMode) {
-      const me = await User.findById(myId);
+      const me = await User.findById(myId).select('savedDesktops').lean();
       const hasPermission = me.savedDesktops.some(id => String(id) === String(targetUserId));
 
       if (!hasPermission) {
@@ -70,7 +70,7 @@ export const getDesktop = async (req, res) => {
       });
     }
 
-    const ownerSettings = await User.findById(targetUserId).select('preferences');
+    const ownerSettings = await User.findById(targetUserId).select('preferences').lean();
 
     return res.status(200).json({
       ok: true,
@@ -249,14 +249,12 @@ export const deleteItem = async (req, res) => {
       publicId: { $ne: null } 
     }).select('publicId').session(session).lean();
 
-    for (const fileItem of itemsWithFiles) {
-      try {
-
-        await deleteFileFromCloudinary(fileItem.publicId);
-      } catch (cloudErr) {
-        console.error(`Error eliminando archivo ${fileItem.publicId} de Cloudinary:`, cloudErr);
-      }
-    }
+    // Paralelizar las peticiones HTTP a Cloudinary, no esperar una por una
+    const deletePromises = itemsWithFiles.map(fileItem => 
+      deleteFileFromCloudinary(fileItem.publicId)
+        .catch(cloudErr => console.error(`Error Cloudinary ${fileItem.publicId}:`, cloudErr))
+    );
+    await Promise.all(deletePromises); // Espera que todas terminen simultáneamente
 
     await Item.deleteMany({ _id: { $in: idsArray }, userId }).session(session);
 

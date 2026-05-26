@@ -1,7 +1,7 @@
 config:
   target: "http://localhost:3000"
   variables:
-    token: "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjZhMTQ4ZTE2NjcyNDVmNjczNTRhNDMyYiIsInJvbGUiOiJ1c2VyIiwiaWF0IjoxNzc5NzU4MjY2LCJleHAiOjE3Nzk4NDQ2NjZ9.uIGtqsi7TJ-2nSMYPWeOLsyiSLkBiZ6Wkz_PDI4MCb8"
+    token: "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjZhMTQ4ZTE2NjcyNDVmNjczNTRhNDMyYiIsInJvbGUiOiJ1c2VyIiwiaWF0IjoxNzc5NzYwMDExLCJleHAiOjE3Nzk4NDY0MTF9.DU8oHD1aAOYX-ccVye1S3OviETYRTM-ld_rXaVZ1Vy0"
     chatId: "6a14a72a3c7618a228b4ff66" 
   phases:
     - duration: 30
@@ -18,7 +18,7 @@ scenarios:
   - name: "Enviar mensaje y eliminarlo para todos"
     flow:
       - post:
-          url: "/api/chats/message"
+          url: "/api/chat/message" 
           headers:
             Authorization: "{{ token }}"
           json:
@@ -28,7 +28,7 @@ scenarios:
             - json: "$.message._id"
               as: "messageId"
       - delete:
-          url: "/api/chats/message/{{ messageId }}"
+          url: "/api/chat/message/{{ messageId }}"
           headers:
             Authorization: "{{ token }}"
           json:

@@ -77,6 +77,7 @@ const itemSchema = new mongoose.Schema(
 );
 
 itemSchema.index({ userId: 1, parentId: 1 });
+itemSchema.index({ workspaceId: 1 });
 itemSchema.index({ workspaceId: 1, parentId: 1 });
 
 export default mongoose.model('Item', itemSchema);

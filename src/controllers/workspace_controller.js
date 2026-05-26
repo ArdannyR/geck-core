@@ -245,7 +245,8 @@ export const fetchUserWorkspaces = async (req, res) => {
     const userId = req.user._id;
     const workspaces = await Workspace.find({ members: userId })
       .populate('owner', 'name email')
-      .populate('members', 'name email avatarUrl');
+      .populate('members', 'name email avatarUrl')
+      .lean();
 
     return res.status(200).json({ ok: true, workspaces });
   } catch (error) {
