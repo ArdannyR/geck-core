@@ -3,14 +3,15 @@ import { verifyAuth } from '../middlewares/auth.js';
 import { accessChat, createGroupChat, fetchChats, sendMessage, fetchMessages, editMessage, deleteMessage, sendAudioMessage, sendFileMessage, markChatAsRead, deleteChat, leaveGroupChat } from '../controllers/chat_controller.js';
 
 const router = Router();
+const upload = multer({ dest: 'uploads/' });
 router.use(verifyAuth);
 
 router.post('/access', accessChat);
 router.post('/group', createGroupChat);
 router.get('/chat', fetchChats);
 router.post('/message', sendMessage);
-router.post('/file', sendFileMessage);
-router.post('/audio', sendAudioMessage);
+router.post('/audio', upload.single('audio'), sendAudioMessage);
+router.post('/file', upload.single('file'), sendFileMessage);
 router.patch('/message/:messageId', editMessage);
 router.delete('/message/:messageId', deleteMessage);
 router.get('/:chatId/chat', fetchMessages);

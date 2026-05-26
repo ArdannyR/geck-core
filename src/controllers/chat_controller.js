@@ -215,22 +215,13 @@ export const markChatAsRead = async (req, res) => {
 export const sendAudioMessage = async (req, res) => {
   try {
     const { chatId, duration } = req.body;
-    const userId = req.user._id;
+    const userId = getUserId(req);
 
-    if (!req.files || !req.files.audio) {
-      return res.status(400).json({ ok: false, msg: 'No se envió ningún audio' });
-    }
+    if (!userId) return res.status(401).json({ ok: false, msg: 'Usuario no autenticado' });
+    if (!req.file) return res.status(400).json({ ok: false, msg: 'No se envió ningún audio' });
 
-    const file = req.files.audio;
-
-    if (!file.mimetype.startsWith('audio/') && !file.mimetype.includes('mp4')) {
-      return res.status(400).json({ 
-        ok: false, 
-        msg: 'El archivo enviado no es un formato de audio válido' 
-      });
-    }
-
-    const { secure_url, public_id } = await uploadFileToCloudinary(file.tempFilePath, 'GeckChat_Audios');
+    // Subida a Cloudinary usando el path asignado por Multer
+    const { secure_url, public_id } = await uploadFileToCloudinary(req.file.path, 'GeckChat_Audios');
 
     const newMessage = await Message.create({
       chatId,
@@ -238,35 +229,26 @@ export const sendAudioMessage = async (req, res) => {
       type: 'audio',
       fileUrl: secure_url,
       filePublicId: public_id,
-      duration: duration || 0,
-      status: 'sent'
+      duration: duration || 0
     });
 
     const populatedMessage = await newMessage.populate('senderId', 'name email avatarUrl');
-
     await Chat.findByIdAndUpdate(chatId, { lastMessage: newMessage._id });
 
     const chat = await Chat.findById(chatId).select('participants');
-
     const io = req.app.get('io');
     if (io) {
       io.to(chatId.toString()).emit('receive_message', populatedMessage);
-
-      const receivers = chat.participants ? chat.participants : [];
-      receivers.forEach(pid => {
-        const pidStr = pid._id ? pid._id.toString() : pid.toString();
-        if (pidStr !== userId.toString()) {
-          io.to(pidStr).emit('message_received', populatedMessage);
+      chat.participants.forEach(pid => {
+        if (pid.toString() !== userId) {
+          io.to(pid.toString()).emit('message_received', populatedMessage);
         }
       });
     }
 
-    return res.status(201).json({
-      ok: true,
-      message: populatedMessage
-    });
+    return res.status(201).json({ ok: true, message: populatedMessage });
   } catch (error) {
-    console.error('Error enviando audio:', error);
+    console.error('Error en sendAudioMessage:', error);
     return res.status(500).json({ ok: false, msg: 'Error al procesar el audio' });
   }
 };
@@ -274,60 +256,41 @@ export const sendAudioMessage = async (req, res) => {
 export const sendFileMessage = async (req, res) => {
   try {
     const senderId = getUserId(req);
-    if (!senderId) {
-      return res.status(401).json({ ok: false, msg: 'Usuario no autenticado' });
-    }
-
     const { chatId } = req.body;
 
-    if (!chatId) {
-      return res.status(400).json({ ok: false, msg: 'chatId es requerido' });
-    }
+    if (!senderId) return res.status(401).json({ ok: false, msg: 'Usuario no autenticado' });
+    if (!chatId) return res.status(400).json({ ok: false, msg: 'chatId es requerido' });
+    if (!req.file) return res.status(400).json({ ok: false, msg: 'No se envió ningún archivo' });
 
-    if (!req.files || (!req.files.document && !req.files.file)) {
-      return res.status(400).json({ ok: false, msg: 'No se envió ningún archivo adjunto' });
-    }
-
-    const file = req.files.document || req.files.file;
-
-    const { secure_url, public_id } = await uploadFileToCloudinary(file.tempFilePath, 'GeckChat_Docs');
+    // Subida a Cloudinary usando el path asignado por Multer
+    const { secure_url, public_id } = await uploadFileToCloudinary(req.file.path, 'GeckChat_Docs');
 
     const newMessage = await Message.create({
       chatId,
       senderId,
-      content: file.name,
+      content: req.file.originalname, // Multer expone el nombre original aquí
       type: 'file',
       fileUrl: secure_url,
-      filePublicId: public_id,
-      status: 'sent'
+      filePublicId: public_id
     });
 
     await Chat.findByIdAndUpdate(chatId, { lastMessage: newMessage._id });
-
     const populatedMessage = await newMessage.populate('senderId', 'name email avatarUrl');
 
     const chat = await Chat.findById(chatId).select('participants');
-    const participantIds = chat.participants.map(p => p.toString());
-
     const io = req.app.get('io');
     if (io) {
       io.to(chatId.toString()).emit('receive_message', populatedMessage);
-
-      const receivers = chat.participants ? chat.participants : participantIds;
-      receivers.forEach(pid => {
-        const pidStr = pid._id ? pid._id.toString() : pid.toString();
-        if (pidStr !== senderId.toString()) {
-          io.to(pidStr).emit('message_received', populatedMessage);
+      chat.participants.forEach(pid => {
+        if (pid.toString() !== senderId) {
+          io.to(pid.toString()).emit('message_received', populatedMessage);
         }
       });
     }
 
-    return res.status(201).json({
-      ok: true,
-      message: populatedMessage
-    });
+    return res.status(201).json({ ok: true, message: populatedMessage });
   } catch (error) {
-    console.error('Error enviando documento:', error);
+    console.error('Error en sendFileMessage:', error);
     return res.status(500).json({ ok: false, msg: 'Error al procesar el documento' });
   }
 };
@@ -335,45 +298,44 @@ export const sendFileMessage = async (req, res) => {
 export const sendMessage = async (req, res) => {
   try {
     const senderId = getUserId(req);
-    if (!senderId) {
-      return res.status(401).json({ ok: false, msg: 'Usuario no autenticado' });
-    }
+    if (!senderId) return res.status(401).json({ ok: false, msg: 'Usuario no autenticado' });
 
     let { chatId, content, clientTimestamp } = req.body;
-
-    if (!chatId && req.body.id) {
-      chatId = req.body.id;
-    }
+    if (!chatId && req.body.id) chatId = req.body.id;
 
     if (!chatId || !content) {
       return res.status(400).json({ ok: false, msg: 'chatId y content son requeridos' });
     }
 
     const chat = await Chat.findById(chatId);
-    if (!chat) {
-      return res.status(404).json({ ok: false, msg: 'Chat no encontrado' });
-    }
+    if (!chat) return res.status(404).json({ ok: false, msg: 'Chat no encontrado' });
 
     const participantIds = chat.participants.map(p => p.toString());
     if (!participantIds.includes(senderId)) {
       return res.status(403).json({ ok: false, msg: 'No eres participante de este chat' });
     }
 
+    // Validación limpia anti-duplicados por marca de tiempo para evitar bugs de red
     if (clientTimestamp) {
-      const existing = await Message.findOne({ chatId, senderId, clientTimestamp }).populate('senderId', 'name email avatarUrl');
-      if (existing) {
-        return res.status(200).json({ ok: true, message: existing, fromDup: true });
+      const existingMessage = await Message.findOne({
+        chatId,
+        senderId,
+        createdAt: new Date(clientTimestamp)
+      });
+      if (existingMessage) {
+        const populatedExisting = await existingMessage.populate('senderId', 'name email avatarUrl');
+        return res.status(200).json({ ok: true, message: populatedExisting });
       }
     }
 
-    const messageData = {
+    // Instancia de creación totalmente limpia
+    const message = await Message.create({
       chatId,
       senderId,
       content,
-      ...(clientTimestamp && { clientTimestamp, createdAt: new Date(clientTimestamp) })
-    };
-
-    const message = await Message.create(messageData);
+      type: 'text',
+      ...(clientTimestamp && { createdAt: new Date(clientTimestamp) })
+    });
 
     const unreadIncrements = {};
     participantIds.forEach(pid => {
@@ -392,38 +354,29 @@ export const sendMessage = async (req, res) => {
     const io = req.app.get('io');
     if (io) {
       io.to(chatId.toString()).emit('receive_message', populatedMessage);
-
-      const receivers = chat.participants ? chat.participants : participantIds;
-      receivers.forEach(pid => {
-        const pidStr = pid._id ? pid._id.toString() : pid.toString();
-        if (pidStr !== senderId.toString()) {
-          io.to(pidStr).emit('message_received', populatedMessage);
+      participantIds.forEach(pid => {
+        if (pid !== senderId) {
+          io.to(pid).emit('message_received', populatedMessage);
         }
       });
     }
 
-    // Responder INMEDIATAMENTE al cliente
-    res.status(201).json({ ok: true, message: populatedMessage });
-
-    // Ejecutar notificaciones Push en segundo plano
     const senderName = req.user?.name || 'Alguien';
     const participantsToNotify = participantIds.filter(pid => pid !== senderId);
-
     if (participantsToNotify.length > 0) {
-      User.find({ _id: { $in: participantsToNotify }, pushToken: { $exists: true, $ne: null } })
-        .select('pushToken')
-        .lean()
-        .then(users => {
-          const pushPromises = users.map(user => 
-            sendPushNotification(user.pushToken, senderName, content, { chatId })
-          );
-          Promise.allSettled(pushPromises);
-        })
-        .catch(err => console.error('Error enviando push en background:', err));
+      const users = await User.find({ _id: { $in: participantsToNotify } }).select('pushToken');
+      users.forEach(user => {
+        if (user.pushToken) {
+          sendPushNotification(user.pushToken, senderName, content, { chatId });
+        }
+      });
     }
+
+    // Se retorna garantizadamente la instancia recién construida
+    return res.status(201).json({ ok: true, message: populatedMessage });
   } catch (error) {
     console.error('Error en sendMessage:', error);
-    return res.status(500).json({ ok: false, msg: 'Error al enviar mensaje' });
+    return res.status(500).json({ ok: false, msg: 'Error al enviar el mensaje' });
   }
 };
 
