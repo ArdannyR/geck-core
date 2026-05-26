@@ -1,0 +1,33 @@
+config:
+  target: "http://localhost:3000"
+  variables:
+    token: "Bearer <TU_TOKEN_JWT_AQUI>"
+  phases:
+    - duration: 30
+      arrivalRate: 2
+      name: "Fase 1: Calentamiento"
+    - duration: 60
+      arrivalRate: 2
+      rampTo: 25
+      name: "Fase 2: Escalamiento"
+    - duration: 30
+      arrivalRate: 40
+      name: "Fase 3: Pico de estrés masivo"
+scenarios:
+  - name: "Crear ítem y eliminarlo inmediatamente"
+    flow:
+      - post:
+          url: "/api/items"
+          headers:
+            Authorization: "{{ token }}"
+          json:
+            type: "link"
+            name: "Enlace Temporal Artillery"
+            url: "https://test.com"
+          capture:
+            - json: "$.item._id"
+              as: "itemId"
+      - delete:
+          url: "/api/items/{{ itemId }}"
+          headers:
+            Authorization: "{{ token }}"

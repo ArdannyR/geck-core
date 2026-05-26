@@ -1,0 +1,30 @@
+config:
+  target: "http://localhost:3000"
+  variables:
+    token: "Bearer <TU_TOKEN_JWT_AQUI>"
+  phases:
+    - duration: 30
+      arrivalRate: 2
+      name: "Fase 1: Calentamiento"
+    - duration: 60
+      arrivalRate: 2
+      rampTo: 30
+      name: "Fase 2: Escalamiento"
+    - duration: 30
+      arrivalRate: 50
+      name: "Fase 3: Pico de estrés masivo"
+scenarios:
+  - name: "Actualizar múltiples posiciones a la vez"
+    flow:
+      - put:
+          url: "/api/items/bulk-positions"
+          headers:
+            Authorization: "{{ token }}"
+          json:
+            items:
+              - id: "<ID_ITEM_1>" # Reemplazar con ID real
+                x: 150
+                y: 200
+              - id: "<ID_ITEM_2>" # Reemplazar con ID real
+                x: 300
+                y: 400

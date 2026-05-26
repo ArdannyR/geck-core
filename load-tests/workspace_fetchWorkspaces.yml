@@ -1,0 +1,22 @@
+config:
+  target: "http://localhost:3000"
+  variables:
+    token: "Bearer <TU_TOKEN_JWT_AQUI>"
+  phases:
+    - duration: 30
+      arrivalRate: 2
+      name: "Fase 1: Calentamiento"
+    - duration: 60
+      arrivalRate: 2
+      rampTo: 30
+      name: "Fase 2: Escalamiento"
+    - duration: 30
+      arrivalRate: 50
+      name: "Fase 3: Pico de estrés masivo"
+scenarios:
+  - name: "Obtener workspaces con populate múltiple"
+    flow:
+      - get:
+          url: "/api/workspaces"
+          headers:
+            Authorization: "{{ token }}"
