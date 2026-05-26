@@ -11,7 +11,7 @@ jest.unstable_mockModule('../src/models/User.js', () => {
   };
 });
 
-const { getProfile, updateProfile } = await import('../src/controllers/user_controller.js');
+const { getProfile, updateProfile } = await import('../../src/controllers/user_controller.js');
 
 describe('User Controller - Profile Info', () => {
   let req, res;

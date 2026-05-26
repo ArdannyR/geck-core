@@ -20,7 +20,7 @@ jest.unstable_mockModule('../src/models/Chat.js', () => {
   };
 });
 
-const { createWorkspace } = await import('../src/controllers/workspace_controller.js');
+const { createWorkspace } = await import('../../src/controllers/workspace_controller.js');
 
 describe('Workspace Controller - createWorkspace', () => {
   let req, res;

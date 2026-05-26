@@ -11,7 +11,7 @@ jest.unstable_mockModule('../src/models/Workspace.js', () => {
   };
 });
 
-const { leaveWorkspace } = await import('../src/controllers/workspace_controller.js');
+const { leaveWorkspace } = await import('../../src/controllers/workspace_controller.js');
 
 describe('Workspace Controller - leaveWorkspace', () => {
   let req, res;

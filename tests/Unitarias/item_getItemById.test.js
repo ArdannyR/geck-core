@@ -9,7 +9,7 @@ jest.unstable_mockModule('../src/models/item.js', () => {
   };
 });
 
-const { getItemById } = await import('../src/controllers/item_controller.js');
+const { getItemById } = await import('../../src/controllers/item_controller.js');
 
 describe('Item Controller - getItemById', () => {
   let req, res;

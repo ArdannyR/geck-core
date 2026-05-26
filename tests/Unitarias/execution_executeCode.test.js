@@ -12,7 +12,7 @@ jest.unstable_mockModule('fs-extra', () => ({
   }
 }));
 
-const { executeCode } = await import('../src/controllers/execution_controller.js');
+const { executeCode } = await import('../../src/controllers/execution_controller.js');
 
 describe('Execution Controller - executeCode', () => {
   let req, res;

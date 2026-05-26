@@ -11,7 +11,7 @@ jest.unstable_mockModule('../src/models/User.js', () => {
   };
 });
 
-const { updatePassword } = await import('../src/controllers/user_controller.js');
+const { updatePassword } = await import('../../src/controllers/user_controller.js');
 
 describe('User Controller - updatePassword', () => {
   let req, res;

@@ -4,7 +4,7 @@ jest.unstable_mockModule('axios', () => ({
   default: { post: jest.fn() }
 }));
 
-const { chatWithAssistant } = await import('../src/controllers/ai_controller.js');
+const { chatWithAssistant } = await import('../../src/controllers/ai_controller.js');
 
 describe('AI Controller - chatWithAssistant', () => {
   let req, res;

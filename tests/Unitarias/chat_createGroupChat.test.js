@@ -4,7 +4,7 @@ jest.unstable_mockModule('../src/models/Chat.js', () => ({
   default: { create: jest.fn() }
 }));
 
-const { createGroupChat } = await import('../src/controllers/chat_controller.js');
+const { createGroupChat } = await import('../../src/controllers/chat_controller.js');
 
 describe('Chat Controller - createGroupChat', () => {
   let req, res;
