@@ -250,3 +250,76 @@ export const sendWorkspaceInviteEmail = ({ to, inviterName, workspaceName, token
     `
   );
 };
+
+export const sendDesktopShareEmail = ({ to, ownerName }) => {
+  return sendMail(
+    to,
+    `${ownerName} ha compartido su escritorio contigo en Geck`,
+    `
+    <!DOCTYPE html>
+    <html lang="es">
+    <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+    <body style="margin:0; padding:0; background-color:#f4f4f8; font-family: 'Segoe UI', Arial, sans-serif;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f8; padding: 40px 20px;">
+        <tr>
+          <td align="center">
+            <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff; border-radius:16px; overflow:hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.08);">
+
+              <!-- Header con gradiente índigo -->
+              <tr>
+                <td style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a78bfa 100%); padding: 40px 40px 32px; text-align: center;">
+                  <h1 style="margin:0; color:#ffffff; font-size:32px; font-weight:800; letter-spacing:-0.5px;">Geck</h1>
+                  <p style="margin:8px 0 0; color:rgba(255,255,255,0.85); font-size:14px; letter-spacing:2px; text-transform:uppercase;">Escritorio compartido</p>
+                </td>
+              </tr>
+
+              <!-- Ícono central -->
+              <tr>
+                <td align="center" style="padding: 32px 40px 0;">
+                  <div style="display:inline-block; background: linear-gradient(135deg, #ede9fe, #ddd6fe); border-radius:50%; width:72px; height:72px; line-height:72px; text-align:center; font-size:32px;">
+                    🖥️
+                  </div>
+                </td>
+              </tr>
+
+              <!-- Contenido -->
+              <tr>
+                <td style="padding: 24px 48px 16px; text-align:center;">
+                  <h2 style="color:#1e1b4b; font-size:22px; font-weight:700; margin:0 0 12px;">Escritorio compartido</h2>
+                  <p style="color:#6b7280; font-size:15px; line-height:1.7; margin:0;">
+                    <strong style="color:#374151;">${ownerName}</strong> ha compartido su escritorio personal contigo.
+                  </p>
+                  <p style="color:#6b7280; font-size:15px; line-height:1.7; margin:16px 0 0;">
+                    Ya puedes verlo desde tu cuenta en Geck.
+                  </p>
+                </td>
+              </tr>
+
+              <!-- Separador -->
+              <tr>
+                <td style="padding: 0 48px 16px;">
+                  <div style="border-top: 1px solid #f0eeff; padding-top:20px;">
+                    <p style="color:#9ca3af; font-size:12px; text-align:center; margin:0;">
+                      Si no esperabas esta notificación, puedes ignorar este correo.
+                    </p>
+                  </div>
+                </td>
+              </tr>
+
+              <!-- Footer -->
+              <tr>
+                <td style="background: linear-gradient(135deg, #faf5ff, #ede9fe); padding:20px 40px; text-align:center; border-top: 1px solid #f0eeff;">
+                  <p style="margin:0; color:#7c3aed; font-size:13px; font-weight:600;">El equipo de Geck</p>
+                  <p style="margin:4px 0 0; color:#a78bfa; font-size:11px;">geck.app · Soporte · Privacidad</p>
+                </td>
+              </tr>
+
+            </table>
+          </td>
+        </tr>
+      </table>
+    </body>
+    </html>
+    `
+  );
+};

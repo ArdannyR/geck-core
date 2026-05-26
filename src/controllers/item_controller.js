@@ -48,7 +48,7 @@ export const getDesktop = async (req, res) => {
       query.$or = [{ parentId: null }, { parentId: { $exists: false } }];
     }
 
-    const [items, ownerSettings] = await Promise.all([
+    let [items, ownerSettings] = await Promise.all([
       Item.find(
         !isRemoteMode && (!folderId || folderId === 'null' || folderId === 'undefined')
           ? { $or: [query, { 'sharedWith.userId': myId }] }

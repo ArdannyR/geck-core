@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import multer from 'multer';
 import { verifyAuth } from '../middlewares/auth.js';
 import { accessChat, createGroupChat, fetchChats, sendMessage, fetchMessages, editMessage, deleteMessage, sendAudioMessage, sendFileMessage, markChatAsRead, deleteChat, leaveGroupChat } from '../controllers/chat_controller.js';
 

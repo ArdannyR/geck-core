@@ -1,5 +1,6 @@
 import User from '../models/User.js';
 import Workspace from '../models/Workspace.js';
+import { sendDesktopShareEmail } from '../helpers/mail.js';
 
 export const shareDesktopAccess = async (req, res) => {
   try {
@@ -24,6 +25,8 @@ export const shareDesktopAccess = async (req, res) => {
 
     invitedUser.savedDesktops.push(ownerId);
     await invitedUser.save();
+
+    await sendDesktopShareEmail({ to: email, ownerName: req.user.name });
 
     return res.status(200).json({
       ok: true,

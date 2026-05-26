@@ -132,13 +132,6 @@ export const acceptInvite = async (req, res) => {
       return res.status(404).json({ ok: false, msg: 'Invitación no encontrada' });
     }
 
-    if (req.user.email !== invite.email) {
-      return res.status(403).json({ 
-        ok: false, 
-        msg: 'No tienes permiso para aceptar esta invitación. Debes iniciar sesión con la cuenta de correo invitada.' 
-      });
-    }
-
     const hoursDiff = (Date.now() - new Date(invite.createdAt).getTime()) / (1000 * 60 * 60);
     if (hoursDiff > 48) {
       return res.status(400).json({ ok: false, msg: 'La invitación ha expirado (48h)' });
