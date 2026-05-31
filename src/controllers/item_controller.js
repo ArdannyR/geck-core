@@ -4,7 +4,6 @@ import Workspace from '../models/Workspace.js';
 import mongoose from 'mongoose';
 import { uploadFileToCloudinary, deleteFileFromCloudinary } from '../helpers/cloudinary.js';
 
-// getDesktop, createItem, uploadFileItem, getItemById, updateBulkPositions, updateItem, deleteItem, getAllItems
 
 export const getDesktop = async (req, res) => {
   try {
@@ -214,7 +213,6 @@ export const deleteItem = async (req, res) => {
       return res.status(404).json({ ok: false, msg: 'No existe este ítem o no pertenece al usuario' });
     }
 
-    // NUEVA RUTA RÁPIDA: si no tiene publicId y no tiene hijos, skip the transaction
     const hasChildren = await Item.exists({ parentId: id, userId });
     if (!root.publicId && !hasChildren) {
       await session.abortTransaction();
@@ -252,17 +250,16 @@ export const deleteItem = async (req, res) => {
 
     const idsArray = Array.from(toDelete);
 
-    const itemsWithFiles = await Item.find({ 
-      _id: { $in: idsArray }, 
-      publicId: { $ne: null } 
+    const itemsWithFiles = await Item.find({
+      _id: { $in: idsArray },
+      publicId: { $ne: null }
     }).select('publicId').session(session).lean();
 
-    // Paralelizar las peticiones HTTP a Cloudinary, no esperar una por una
-    const deletePromises = itemsWithFiles.map(fileItem => 
+    const deletePromises = itemsWithFiles.map(fileItem =>
       deleteFileFromCloudinary(fileItem.publicId)
         .catch(cloudErr => console.error(`Error Cloudinary ${fileItem.publicId}:`, cloudErr))
     );
-    await Promise.all(deletePromises); // Espera que todas terminen simultáneamente
+    await Promise.all(deletePromises);
 
     await Item.deleteMany({ _id: { $in: idsArray }, userId }).session(session);
 
@@ -294,7 +291,6 @@ export const updateItem = async (req, res) => {
     const item = await Item.findById(id);
     if (!item) return res.status(404).json({ ok: false, msg: 'Ítem no encontrado' });
 
-    // 1. Validar Permisos Generales
     const isOwner = String(item.userId) === String(userId);
     const sharedUser = item.sharedWith.find(s => String(s.userId) === String(userId));
     const hasEditPermission = sharedUser && sharedUser.permission === 'edit';
@@ -305,19 +301,16 @@ export const updateItem = async (req, res) => {
 
     let isUpdated = false;
 
-    // 2. Renombrar
     if (name && String(name).trim() !== '') {
       item.name = String(name).trim();
       isUpdated = true;
     }
 
-    // 3. Mover (Coordenadas)
     if (x !== undefined || y !== undefined) {
       if (isOwner) {
         if (x !== undefined) item.position.x = Number(x);
         if (y !== undefined) item.position.y = Number(y);
       } else {
-        // Lógica para que los invitados guarden su propia vista de la posición
         const guestPosIndex = item.guestPositions.findIndex(gp => String(gp.userId) === String(userId));
         if (guestPosIndex >= 0) {
           if (x !== undefined) item.guestPositions[guestPosIndex].x = Number(x);
@@ -333,22 +326,18 @@ export const updateItem = async (req, res) => {
       isUpdated = true;
     }
 
-    // 4. Actualizar Contenido (Notas/Código)
     if (content !== undefined) {
-      // Validar que solo notas o código puedan tener texto interno
       if (item.type === 'note' || item.type === 'code') {
         item.content = content;
         isUpdated = true;
       } else {
-        // Opcional: Si intentan modificar el contenido de un archivo o carpeta, devuelves un error.
-        return res.status(400).json({ 
-          ok: false, 
-          msg: `No se puede modificar el texto interno de un ítem tipo '${item.type}'` 
+        return res.status(400).json({
+          ok: false,
+          msg: `No se puede modificar el texto interno de un ítem tipo '${item.type}'`
         });
       }
     }
 
-    // 5. Compartir (Solo el dueño puede invitar a otros)
     let newInvitedUser = null;
     if (email && permission) {
       if (!isOwner) {
@@ -358,7 +347,6 @@ export const updateItem = async (req, res) => {
         return res.status(400).json({ ok: false, msg: 'Permiso inválido (debe ser read o edit)' });
       }
 
-      // 👇 AQUÍ ESTÁ LA CORRECCIÓN DEL ERROR "invitedUser is not defined" 👇
       const invitedUser = await User.findOne({ email });
       if (!invitedUser) {
         return res.status(404).json({ ok: false, msg: `El usuario con correo ${email} no existe` });
@@ -369,24 +357,21 @@ export const updateItem = async (req, res) => {
 
       const index = item.sharedWith.findIndex(s => String(s.userId) === String(invitedUser._id));
       if (index >= 0) {
-        item.sharedWith[index].permission = permission; // Actualiza el permiso si ya existía
+        item.sharedWith[index].permission = permission;
       } else {
-        item.sharedWith.push({ userId: invitedUser._id, permission }); // Lo agrega si es nuevo
+        item.sharedWith.push({ userId: invitedUser._id, permission });
       }
-      
+
       newInvitedUser = invitedUser;
       isUpdated = true;
     }
 
-    // Guardar si hubo algún cambio
     if (isUpdated) {
       await item.save();
     }
 
-    // 6. Emitir por Sockets para el Tiempo Real
     const io = req.app.get('io');
     if (io) {
-      // Evento general de actualización
       const payload = { id: item._id, name: item.name, position: item.position, type: item.type };
       if (item.workspaceId) {
         io.to(`workspace:${item.workspaceId}`).emit('item-updated', payload);
@@ -397,16 +382,15 @@ export const updateItem = async (req, res) => {
         }
       }
 
-      // Evento específico para notificar al nuevo usuario invitado
       if (newInvitedUser) {
         io.to(`user:${newInvitedUser._id}`).emit('item-shared', item);
       }
     }
 
-    return res.status(200).json({ 
-      ok: true, 
-      msg: 'Ítem actualizado correctamente', 
-      item 
+    return res.status(200).json({
+      ok: true,
+      msg: 'Ítem actualizado correctamente',
+      item
     });
 
   } catch (error) {

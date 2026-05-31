@@ -13,7 +13,7 @@ export const sendRegistrationEmail = (userMail, token) => {
         <tr>
           <td align="center">
             <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff; border-radius:16px; overflow:hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.08);">
-              
+
               <!-- Header con gradiente morado/azul -->
               <tr>
                 <td style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a78bfa 100%); padding: 40px 40px 32px; text-align: center;">

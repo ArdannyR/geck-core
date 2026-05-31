@@ -7,7 +7,6 @@ import { uploadFileToCloudinary } from '../helpers/cloudinary.js';
 import { v2 as cloudinary } from 'cloudinary';
 import mongoose from 'mongoose';
 
-// 6 endpoints: getProfile, updatePassword, updateProfile, updatePreferences, deleteAccount, searchUsers
 export const getProfile = (req, res) => {
   const user = req.user;
 
@@ -47,7 +46,7 @@ export const updatePassword = async (req, res) => {
 
 export const updateProfile = async (req, res) => {
   try {
-    const id = req.user._id; 
+    const id = req.user._id;
     const { nombre, name, email } = req.body;
     const finalName = nombre || name;
 
@@ -79,20 +78,17 @@ export const updateProfile = async (req, res) => {
 export const updatePreferences = async (req, res) => {
   try {
     const userId = req.user._id;
-    
-    // 1. Extracción de campos (incluimos 'type' que viene de la app móvil)
+
     const { theme, accent, wallpaperUrl, phoneWallpaperUrl, type } = req.body || {};
 
     const userDB = await User.findById(userId);
     if (!userDB) return res.status(404).json({ ok: false, msg: 'Usuario no encontrado' });
 
-    // 2. Actualizar campos de texto (si se envían)
     if (theme && ['light', 'dark', 'system'].includes(theme)) userDB.preferences.theme = theme;
     if (accent) userDB.preferences.accent = accent;
     if (wallpaperUrl !== undefined) userDB.preferences.wallpaperUrl = wallpaperUrl;
     if (phoneWallpaperUrl !== undefined) userDB.preferences.phoneWallpaperUrl = phoneWallpaperUrl;
 
-    // 3. Lógica reciclada: Procesamiento de imagen individual desde Multer
     if (req.file) {
       if (!type || !['avatar', 'wallpaper'].includes(type)) {
         return res.status(400).json({ ok: false, msg: 'Para subir una imagen, "type" debe ser "avatar" o "wallpaper"' });
@@ -102,12 +98,10 @@ export const updatePreferences = async (req, res) => {
       const { secure_url, public_id } = await uploadFileToCloudinary(req.file.path, folder);
 
       if (type === 'avatar') {
-        // Eliminar avatar anterior si existe
         if (userDB.avatarPublicId) await cloudinary.uploader.destroy(userDB.avatarPublicId).catch(() => {});
         userDB.avatarUrl = secure_url;
         userDB.avatarPublicId = public_id;
       } else {
-        // Eliminar wallpaper de celular anterior si existe
         if (userDB.preferences.phoneWallpaperPublicId) {
           await cloudinary.uploader.destroy(userDB.preferences.phoneWallpaperPublicId).catch(() => {});
         }
@@ -116,10 +110,8 @@ export const updatePreferences = async (req, res) => {
       }
     }
 
-    // 4. Guardado final en la base de datos
     await userDB.save();
 
-    // 5. Emitir cambios por Sockets
     const io = req.app.get('io');
     if (io) {
       io.to(`user:${userId}`).emit('preferences-updated', {
@@ -131,9 +123,9 @@ export const updatePreferences = async (req, res) => {
       });
     }
 
-    return res.status(200).json({ 
-      ok: true, 
-      msg: 'Preferencias actualizadas correctamente', 
+    return res.status(200).json({
+      ok: true,
+      msg: 'Preferencias actualizadas correctamente',
       preferences: userDB.preferences,
       avatarUrl: userDB.avatarUrl,
     });
@@ -179,7 +171,6 @@ export const deleteAccount = async (req, res) => {
       { session }
     );
 
-    // -- Workspace cascade --
     await Workspace.deleteMany({ owner: userId }).session(session);
     await Workspace.updateMany(
       { members: userId },
@@ -187,8 +178,6 @@ export const deleteAccount = async (req, res) => {
       { session }
     );
 
-    // -- Chat & Message cascade --
-    // Group chats where user is the ONLY admin → delete entirely (with messages)
     const groupChatsWithAdmin = await Chat.find({
       isGroup: true, admins: userId
     }).session(session);
@@ -205,24 +194,20 @@ export const deleteAccount = async (req, res) => {
       await Chat.deleteMany({ _id: { $in: deleteChatIds } }).session(session);
     }
 
-    // Other group chats → remove user from participants and admins
     await Chat.updateMany(
       { isGroup: true, participants: userId, _id: { $nin: deleteChatIds } },
       { $pull: { participants: userId, admins: userId } },
       { session }
     );
 
-    // 1:1 chats → remove user from participants
     await Chat.updateMany(
       { isGroup: false, participants: userId },
       { $pull: { participants: userId } },
       { session }
     );
 
-    // Messages sent by the user
     await Message.deleteMany({ senderId: userId }).session(session);
 
-    // -- Invalidate tokens/sessions --
     await User.updateOne(
       { _id: userId },
       { $set: { token: null, pushToken: null } }

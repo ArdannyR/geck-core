@@ -17,34 +17,27 @@ export const deleteChat = async (req, res) => {
 
     const { chatId } = req.params;
 
-    // 1. Buscar el chat
     const chat = await Chat.findById(chatId);
     if (!chat) {
       return res.status(404).json({ ok: false, msg: 'Chat no encontrado' });
     }
 
-    // 2. Validar permisos
     if (chat.isGroup) {
-      // Si es un grupo, solo los administradores pueden eliminarlo
       const isAdmin = chat.admins.some(adminId => adminId.toString() === userId);
       if (!isAdmin) {
         return res.status(403).json({ ok: false, msg: 'Solo los administradores pueden eliminar este grupo' });
       }
     } else {
-      // Si es un chat 1 a 1, solo los participantes pueden eliminarlo
       const isParticipant = chat.participants.some(pId => pId.toString() === userId);
       if (!isParticipant) {
         return res.status(403).json({ ok: false, msg: 'No tienes permiso para eliminar este chat' });
       }
     }
 
-    // 3. Eliminar TODOS los mensajes asociados a este chat (Borrado en cascada)
     await Message.deleteMany({ chatId: chat._id });
 
-    // 4. Eliminar el documento del Chat
     await Chat.findByIdAndDelete(chatId);
 
-    // 5. Opcional: Avisar por sockets a los participantes para que desaparezca de su interfaz
     const io = req.app.get('io');
     if (io) {
       chat.participants.forEach(pid => {
@@ -220,7 +213,6 @@ export const sendAudioMessage = async (req, res) => {
     if (!userId) return res.status(401).json({ ok: false, msg: 'Usuario no autenticado' });
     if (!req.file) return res.status(400).json({ ok: false, msg: 'No se envió ningún audio' });
 
-    // Subida a Cloudinary usando el path asignado por Multer
     const { secure_url, public_id } = await uploadFileToCloudinary(req.file.path, 'GeckChat_Audios');
 
     const newMessage = await Message.create({
@@ -262,13 +254,12 @@ export const sendFileMessage = async (req, res) => {
     if (!chatId) return res.status(400).json({ ok: false, msg: 'chatId es requerido' });
     if (!req.file) return res.status(400).json({ ok: false, msg: 'No se envió ningún archivo' });
 
-    // Subida a Cloudinary usando el path asignado por Multer
     const { secure_url, public_id } = await uploadFileToCloudinary(req.file.path, 'GeckChat_Docs');
 
     const newMessage = await Message.create({
       chatId,
       senderId,
-      content: req.file.originalname, // Multer expone el nombre original aquí
+      content: req.file.originalname,
       type: 'file',
       fileUrl: secure_url,
       filePublicId: public_id
@@ -315,7 +306,6 @@ export const sendMessage = async (req, res) => {
       return res.status(403).json({ ok: false, msg: 'No eres participante de este chat' });
     }
 
-    // Validación limpia anti-duplicados por marca de tiempo para evitar bugs de red
     if (clientTimestamp) {
       const existingMessage = await Message.findOne({
         chatId,
@@ -328,7 +318,6 @@ export const sendMessage = async (req, res) => {
       }
     }
 
-    // Instancia de creación totalmente limpia
     const message = await Message.create({
       chatId,
       senderId,
@@ -372,7 +361,6 @@ export const sendMessage = async (req, res) => {
       });
     }
 
-    // Se retorna garantizadamente la instancia recién construida
     return res.status(201).json({ ok: true, message: populatedMessage });
   } catch (error) {
     console.error('Error en sendMessage:', error);
@@ -390,7 +378,7 @@ export const fetchMessages = async (req, res) => {
     const limit = parseInt(req.query.limit) || 20;
     const skip = (page - 1) * limit;
 
-    const chat = await Chat.findById(chatId).select('participants').lean(); 
+    const chat = await Chat.findById(chatId).select('participants').lean();
     if (!chat) return res.status(404).json({ ok: false, msg: 'Chat no encontrado' });
 
     const participantIds = chat.participants.map(p => p.toString());
@@ -402,7 +390,7 @@ export const fetchMessages = async (req, res) => {
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
-        .lean(), 
+        .lean(),
       Message.countDocuments({ chatId, deletedFor: { $ne: userId } })
     ]);
 
@@ -526,11 +514,9 @@ export const leaveGroupChat = async (req, res) => {
       return res.status(403).json({ ok: false, msg: 'No eres miembro de este grupo' });
     }
 
-    // Remove from participants and admins
     chat.participants = chat.participants.filter(p => p.toString() !== userId);
     chat.admins = chat.admins.filter(a => a.toString() !== userId);
 
-    // Cascade to workspace if this chat is linked to one
     if (chat.workspaceId) {
       await Workspace.updateOne(
         { _id: chat.workspaceId },

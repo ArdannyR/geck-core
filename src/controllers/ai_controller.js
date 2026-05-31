@@ -4,7 +4,6 @@ import Item from '../models/item.js';
 import { uploadBase64ToCloudinary } from '../helpers/cloudinary.js';
 import { v2 as cloudinary } from 'cloudinary';
 
-// 4 endpoints: chatWithAssistant, generateWallpaper, semanticSearch, improveText
 export const chatWithAssistant = async (req, res) => {
   try {
     const { mensaje } = req.body;
@@ -90,14 +89,13 @@ export const semanticSearch = async (req, res) => {
       return res.status(400).json({ ok: false, msg: 'La consulta es obligatoria' });
     }
 
-    // --- INICIO DE LOS CAMBIOS ---
     const items = await Item.find({
       userId: userId,
-      type: { $in: ['note', 'code'] } // Se quitó 'file' para evitar PDFs sin texto extraído
+      type: { $in: ['note', 'code'] }
     });
 
     const archivosParaIA = items
-      .filter(item => item.content && item.content.trim().length > 20) // Solo items con contenido real y útil
+      .filter(item => item.content && item.content.trim().length > 20)
       .map(item => ({
         id: item._id.toString(),
         nombre: item.name,
@@ -107,7 +105,6 @@ export const semanticSearch = async (req, res) => {
     if (archivosParaIA.length === 0) {
       return res.status(200).json({ ok: true, data: [] });
     }
-    // --- FIN DE LOS CAMBIOS ---
 
     const pythonUrl = `${process.env.PYTHON_MICROSERVICE_URL}/buscar`;
 

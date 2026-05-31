@@ -11,9 +11,10 @@ router.use(verifyAuth);
 router.get('/profile', getProfile);
 router.patch('/update-password', updatePassword);
 router.patch('/profile/:id', updateProfile);
-router.patch('/preferences', upload.single('image'), updatePreferences);
+router.patch('/preferences', updatePreferences);
+router.post('/preferences', upload.single('image'), updatePreferences);
 router.delete('/delete-account', deleteAccount);
-router.get('/search', searchUsers); 
-router.patch('/update-push-token', updatePushToken); 
+router.get('/search', searchUsers);
+router.patch('/update-push-token', updatePushToken);
 
 export default router;

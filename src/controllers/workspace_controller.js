@@ -4,7 +4,6 @@ import Chat from '../models/Chat.js';
 import crypto from 'crypto';
 import { sendWorkspaceInviteEmail } from '../helpers/mail.js';
 
-// 5 endpoints: createWorkspace, inviteMember, acceptInvite, leaveWorkspace, fetchUserWorkspaces
 export const createWorkspace = async (req, res) => {
   try {
     const userId = req.user._id;

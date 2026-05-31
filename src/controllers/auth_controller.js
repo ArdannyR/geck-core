@@ -2,7 +2,6 @@ import User from '../models/User.js';
 import { sendRegistrationEmail, sendPasswordRecoveryEmail } from '../helpers/mail.js';
 import { createJWT } from '../helpers/jwt.js';
 
-// 6 endpoints: registerUser, confirmEmail, forgotPassword, verifyPasswordToken, resetPassword, loginUser
 
 export const registerUser = async (req, res) => {
   try {

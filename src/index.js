@@ -245,7 +245,6 @@ const startServer = async () => {
         }
       }
 
-      // Clean up any remaining reference to this socket in case of duplicates
       for (let [userId, sockId] of onlineUsers.entries()) {
         if (sockId === socket.id) {
           onlineUsers.delete(userId);
