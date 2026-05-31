@@ -90,12 +90,15 @@ export const semanticSearch = async (req, res) => {
     }
 
     const items = await Item.find({
-      userId: userId,
-      type: { $in: ['note', 'code'] }
+      $or: [ 
+        { userId: userId },
+        { 'sharedWith.userId': userId }
+      ],
+      type: { $in: ['note', 'code'] } 
     });
 
     const archivosParaIA = items
-      .filter(item => item.content && item.content.trim().length > 20)
+      .filter(item => item.content && item.content.trim().length > 10)
       .map(item => ({
         id: item._id.toString(),
         nombre: item.name,
