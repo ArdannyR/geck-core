@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import multer from 'multer';
-import { getProfile, updatePassword, updateProfile, updatePreferences, deleteAccount, searchUsers, updatePushToken, updateImage } from '../controllers/user_controller.js';
+import { getProfile, updatePassword, updateProfile, updatePreferences, deleteAccount, searchUsers, updatePushToken } from '../controllers/user_controller.js';
 import { verifyAuth } from '../middlewares/auth.js';
 
 const upload = multer({ dest: 'uploads/' });
