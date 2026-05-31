@@ -3,7 +3,10 @@ import multer from 'multer';
 import { getProfile, updatePassword, updateProfile, updatePreferences, deleteAccount, searchUsers, updatePushToken } from '../controllers/user_controller.js';
 import { verifyAuth } from '../middlewares/auth.js';
 
-const upload = multer({ dest: 'uploads/' });
+const upload = multer({ 
+  dest: 'uploads/',
+  limits: { fileSize: 10 * 1024 * 1024 } 
+});
 const router = Router();
 
 router.use(verifyAuth);
