@@ -90,23 +90,28 @@ export const updatePreferences = async (req, res) => {
     if (phoneWallpaperUrl !== undefined) userDB.preferences.phoneWallpaperUrl = phoneWallpaperUrl;
 
     if (req.file) {
-      if (!type || !['avatar', 'wallpaper'].includes(type)) {
-        return res.status(400).json({ ok: false, msg: 'Para subir una imagen, "type" debe ser "avatar" o "wallpaper"' });
-      }
-
-      const folder = type === 'avatar' ? 'VirtualDesk_Avatars' : 'PhoneWallpapers';
-      const { secure_url, public_id } = await uploadFileToCloudinary(req.file.path, folder);
-
-      if (type === 'avatar') {
-        if (userDB.avatarPublicId) await cloudinary.uploader.destroy(userDB.avatarPublicId).catch(() => {});
-        userDB.avatarUrl = secure_url;
-        userDB.avatarPublicId = public_id;
-      } else {
-        if (userDB.preferences.phoneWallpaperPublicId) {
-          await cloudinary.uploader.destroy(userDB.preferences.phoneWallpaperPublicId).catch(() => {});
+      try {
+        if (!type || !['avatar', 'wallpaper'].includes(type)) {
+          return res.status(400).json({ ok: false, msg: 'Para subir una imagen, "type" debe ser "avatar" o "wallpaper"' });
         }
-        userDB.preferences.phoneWallpaperUrl = secure_url;
-        userDB.preferences.phoneWallpaperPublicId = public_id;
+
+        const folder = type === 'avatar' ? 'VirtualDesk_Avatars' : 'PhoneWallpapers';
+        const { secure_url, public_id } = await uploadFileToCloudinary(req.file.path, folder);
+
+        if (type === 'avatar') {
+          if (userDB.avatarPublicId) await cloudinary.uploader.destroy(userDB.avatarPublicId).catch(() => {});
+          userDB.avatarUrl = secure_url;
+          userDB.avatarPublicId = public_id;
+        } else {
+          if (userDB.preferences.phoneWallpaperPublicId) {
+            await cloudinary.uploader.destroy(userDB.preferences.phoneWallpaperPublicId).catch(() => {});
+          }
+          userDB.preferences.phoneWallpaperUrl = secure_url;
+          userDB.preferences.phoneWallpaperPublicId = public_id;
+        }
+      } catch (uploadError) {
+        console.error('Error subiendo imagen a Cloudinary:', uploadError);
+        return res.status(500).json({ ok: false, msg: `Error en Cloudinary: ${uploadError.message}` });
       }
     }
 
