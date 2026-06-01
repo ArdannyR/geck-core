@@ -212,9 +212,10 @@ export const sendAudioMessage = async (req, res) => {
     const userId = getUserId(req);
 
     if (!userId) return res.status(401).json({ ok: false, msg: 'Usuario no autenticado' });
-    if (!req.file) return res.status(400).json({ ok: false, msg: 'No se envió ningún audio' });
-
-    const { secure_url, public_id } = await uploadFileToCloudinary(req.file.path, 'GeckChat_Audios');
+    if (!req.files || !req.files.audio) return res.status(400).json({ ok: false, msg: 'No se envió ningún audio' });
+    
+    const audioFile = req.files.audio;
+    const { secure_url, public_id } = await uploadFileToCloudinary(audioFile.tempFilePath, 'GeckChat_Audios');
 
     const newMessage = await Message.create({
       chatId,
@@ -253,14 +254,15 @@ export const sendFileMessage = async (req, res) => {
 
     if (!senderId) return res.status(401).json({ ok: false, msg: 'Usuario no autenticado' });
     if (!chatId) return res.status(400).json({ ok: false, msg: 'chatId es requerido' });
-    if (!req.file) return res.status(400).json({ ok: false, msg: 'No se envió ningún archivo' });
-
-    const { secure_url, public_id } = await uploadFileToCloudinary(req.file.path, 'GeckChat_Docs');
+    if (!req.files || !req.files.file) return res.status(400).json({ ok: false, msg: 'No se envió ningún archivo' });
+    
+    const docFile = req.files.file;
+    const { secure_url, public_id } = await uploadFileToCloudinary(docFile.tempFilePath, 'GeckChat_Docs');
 
     const newMessage = await Message.create({
       chatId,
       senderId,
-      content: req.file.originalname,
+      content: docFile.name, 
       type: 'file',
       fileUrl: secure_url,
       filePublicId: public_id
