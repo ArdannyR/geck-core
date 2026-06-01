@@ -227,9 +227,20 @@ export const sendAudioMessage = async (req, res) => {
     });
 
     const populatedMessage = await newMessage.populate('senderId', 'name email avatarUrl');
-    await Chat.findByIdAndUpdate(chatId, { lastMessage: newMessage._id });
-
     const chat = await Chat.findById(chatId).select('participants');
+    const unreadIncrements = {};
+
+    chat.participants.forEach(pid => {
+      if (pid.toString() !== userId) {
+        unreadIncrements[`unreadCounts.${pid.toString()}`] = 1;
+      }
+    });
+
+    await Chat.findByIdAndUpdate(chatId, { 
+      $inc: unreadIncrements,
+      lastMessage: newMessage._id 
+    });
+
     const io = req.app.get('io');
     if (io) {
       io.to(chatId.toString()).emit('receive_message', populatedMessage);
@@ -269,9 +280,22 @@ export const sendFileMessage = async (req, res) => {
     });
 
     await Chat.findByIdAndUpdate(chatId, { lastMessage: newMessage._id });
+    
     const populatedMessage = await newMessage.populate('senderId', 'name email avatarUrl');
-
     const chat = await Chat.findById(chatId).select('participants');
+    const unreadIncrements = {};
+
+    chat.participants.forEach(pid => {
+      if (pid.toString() !== senderId) {
+        unreadIncrements[`unreadCounts.${pid.toString()}`] = 1;
+      }
+    });
+
+    await Chat.findByIdAndUpdate(chatId, { 
+      $inc: unreadIncrements,
+      lastMessage: newMessage._id 
+    });
+
     const io = req.app.get('io');
     if (io) {
       io.to(chatId.toString()).emit('receive_message', populatedMessage);
