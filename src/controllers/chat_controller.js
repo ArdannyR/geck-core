@@ -207,7 +207,8 @@ export const markChatAsRead = async (req, res) => {
 
 export const sendAudioMessage = async (req, res) => {
   try {
-    const { chatId, duration } = req.body;
+    const chatId = req.body.chatId || req.headers['x-chat-id'];
+    const duration = req.body.duration || req.headers['x-duration'];
     const userId = getUserId(req);
 
     if (!userId) return res.status(401).json({ ok: false, msg: 'Usuario no autenticado' });
@@ -248,7 +249,7 @@ export const sendAudioMessage = async (req, res) => {
 export const sendFileMessage = async (req, res) => {
   try {
     const senderId = getUserId(req);
-    const { chatId } = req.body;
+    const chatId = req.body.chatId || req.headers['x-chat-id'];
 
     if (!senderId) return res.status(401).json({ ok: false, msg: 'Usuario no autenticado' });
     if (!chatId) return res.status(400).json({ ok: false, msg: 'chatId es requerido' });
