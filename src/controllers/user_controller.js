@@ -83,7 +83,7 @@ export const updatePreferences = async (req, res) => {
 
     const userDB = await User.findById(userId);
     if (!userDB) return res.status(404).json({ ok: false, msg: 'Usuario no encontrado' });
-    
+
     if (theme && ['light', 'dark', 'system'].includes(theme)) userDB.preferences.theme = theme;
     if (accent) userDB.preferences.accent = accent;
     if (wallpaperUrl !== undefined) userDB.preferences.wallpaperUrl = wallpaperUrl;
@@ -92,33 +92,43 @@ export const updatePreferences = async (req, res) => {
     const archivo = req.file || (req.files ? req.files.image : null);
 
     if (archivo) {
-      if (!type || !['avatar', 'desktopWallpaper', 'phoneWallpaper'].includes(type)) {
+      if (!type || !['avatar', 'desktopWallpaper', 'phoneWallpaper', 'wallpaper'].includes(type)) {
         return res.status(400).json({ 
           ok: false, 
-          msg: 'Para subir una imagen, "type" debe ser "avatar", "desktopWallpaper" o "phoneWallpaper"' 
+          msg: 'Para subir una imagen, "type" debe ser "avatar", "desktopWallpaper", "phoneWallpaper" o "wallpaper"' 
         });
       }
 
+      let resolvedType = type;
+      if (type === 'wallpaper') {
+        const userAgent = req.headers['user-agent'] || '';
+        if (userAgent.includes('Mozilla') || userAgent.includes('Chrome') || userAgent.includes('Safari')) {
+          resolvedType = 'desktopWallpaper';
+        } else {
+          resolvedType = 'phoneWallpaper';
+        }
+      }
+
       let folder = 'VirtualDesk_Avatars';
-      if (type === 'desktopWallpaper') folder = 'DesktopWallpapers';
-      if (type === 'phoneWallpaper') folder = 'PhoneWallpapers';
+      if (resolvedType === 'desktopWallpaper') folder = 'DesktopWallpapers';
+      if (resolvedType === 'phoneWallpaper') folder = 'PhoneWallpapers';
 
       const filePath = archivo.path || archivo.tempFilePath;
       const { secure_url, public_id } = await uploadFileToCloudinary(filePath, folder);
 
-      if (type === 'avatar') {
+      if (resolvedType === 'avatar') {
         if (userDB.avatarPublicId) await cloudinary.uploader.destroy(userDB.avatarPublicId).catch(() => {});
         userDB.avatarUrl = secure_url;
         userDB.avatarPublicId = public_id;
       } 
-      else if (type === 'desktopWallpaper') {
+      else if (resolvedType === 'desktopWallpaper') {
         if (userDB.preferences.wallpaperPublicId) {
           await cloudinary.uploader.destroy(userDB.preferences.wallpaperPublicId).catch(() => {});
         }
         userDB.preferences.wallpaperUrl = secure_url;
         userDB.preferences.wallpaperPublicId = public_id;
       } 
-      else if (type === 'phoneWallpaper') {
+      else if (resolvedType === 'phoneWallpaper') {
         if (userDB.preferences.phoneWallpaperPublicId) {
           await cloudinary.uploader.destroy(userDB.preferences.phoneWallpaperPublicId).catch(() => {});
         }
