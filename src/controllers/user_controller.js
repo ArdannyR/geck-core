@@ -83,40 +83,51 @@ export const updatePreferences = async (req, res) => {
 
     const userDB = await User.findById(userId);
     if (!userDB) return res.status(404).json({ ok: false, msg: 'Usuario no encontrado' });
-
+    
     if (theme && ['light', 'dark', 'system'].includes(theme)) userDB.preferences.theme = theme;
     if (accent) userDB.preferences.accent = accent;
     if (wallpaperUrl !== undefined) userDB.preferences.wallpaperUrl = wallpaperUrl;
     if (phoneWallpaperUrl !== undefined) userDB.preferences.phoneWallpaperUrl = phoneWallpaperUrl;
 
-    if (req.file) {
-      try {
-        if (!type || !['avatar', 'wallpaper'].includes(type)) {
-          return res.status(400).json({ ok: false, msg: 'Para subir una imagen, "type" debe ser "avatar" o "wallpaper"' });
-        }
+    const archivo = req.file || (req.files ? req.files.image : null);
 
-        const folder = type === 'avatar' ? 'VirtualDesk_Avatars' : 'PhoneWallpapers';
-        const { secure_url, public_id } = await uploadFileToCloudinary(req.file.path, folder);
+    if (archivo) {
+      if (!type || !['avatar', 'desktopWallpaper', 'phoneWallpaper'].includes(type)) {
+        return res.status(400).json({ 
+          ok: false, 
+          msg: 'Para subir una imagen, "type" debe ser "avatar", "desktopWallpaper" o "phoneWallpaper"' 
+        });
+      }
 
-        if (type === 'avatar') {
-          if (userDB.avatarPublicId) await cloudinary.uploader.destroy(userDB.avatarPublicId).catch(() => {});
-          userDB.avatarUrl = secure_url;
-          userDB.avatarPublicId = public_id;
-        } else {
-          if (userDB.preferences.phoneWallpaperPublicId) {
-            await cloudinary.uploader.destroy(userDB.preferences.phoneWallpaperPublicId).catch(() => {});
-          }
-          userDB.preferences.phoneWallpaperUrl = secure_url;
-          userDB.preferences.phoneWallpaperPublicId = public_id;
+      let folder = 'VirtualDesk_Avatars';
+      if (type === 'desktopWallpaper') folder = 'DesktopWallpapers';
+      if (type === 'phoneWallpaper') folder = 'PhoneWallpapers';
+
+      const filePath = archivo.path || archivo.tempFilePath;
+      const { secure_url, public_id } = await uploadFileToCloudinary(filePath, folder);
+
+      if (type === 'avatar') {
+        if (userDB.avatarPublicId) await cloudinary.uploader.destroy(userDB.avatarPublicId).catch(() => {});
+        userDB.avatarUrl = secure_url;
+        userDB.avatarPublicId = public_id;
+      } 
+      else if (type === 'desktopWallpaper') {
+        if (userDB.preferences.wallpaperPublicId) {
+          await cloudinary.uploader.destroy(userDB.preferences.wallpaperPublicId).catch(() => {});
         }
-      } catch (uploadError) {
-        console.error('Error subiendo imagen a Cloudinary:', uploadError);
-        return res.status(500).json({ ok: false, msg: `Error en Cloudinary: ${uploadError.message}` });
+        userDB.preferences.wallpaperUrl = secure_url;
+        userDB.preferences.wallpaperPublicId = public_id;
+      } 
+      else if (type === 'phoneWallpaper') {
+        if (userDB.preferences.phoneWallpaperPublicId) {
+          await cloudinary.uploader.destroy(userDB.preferences.phoneWallpaperPublicId).catch(() => {});
+        }
+        userDB.preferences.phoneWallpaperUrl = secure_url;
+        userDB.preferences.phoneWallpaperPublicId = public_id;
       }
     }
 
     await userDB.save();
-
     const io = req.app.get('io');
     if (io) {
       io.to(`user:${userId}`).emit('preferences-updated', {
