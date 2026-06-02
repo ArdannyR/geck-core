@@ -3,6 +3,7 @@ import User from '../models/User.js';
 import Workspace from '../models/Workspace.js';
 import mongoose from 'mongoose';
 import { uploadFileToCloudinary, deleteFileFromCloudinary } from '../helpers/cloudinary.js';
+import { sendItemShareEmail } from '../helpers/mail.js';
 
 
 export const getDesktop = async (req, res) => {
@@ -366,6 +367,7 @@ export const updateItem = async (req, res) => {
       isUpdated = true;
     }
 
+
     if (isUpdated) {
       await item.save();
     }
@@ -384,6 +386,13 @@ export const updateItem = async (req, res) => {
 
       if (newInvitedUser) {
         io.to(`user:${newInvitedUser._id}`).emit('item-shared', item);
+        
+        await sendItemShareEmail({
+          to: newInvitedUser.email,
+          ownerName: req.user.name,
+          itemName: item.name,
+          itemType: item.type
+        });
       }
     }
 

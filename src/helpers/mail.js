@@ -316,3 +316,63 @@ export const sendDesktopShareEmail = ({ to, ownerName }) => {
     `
   );
 };
+
+export const sendItemShareEmail = ({ to, ownerName, itemName, itemType }) => {
+  const typeLabels = {
+    folder: 'una carpeta',
+    note: 'una nota',
+    code: 'un archivo de código',
+    link: 'un enlace',
+    file: 'un archivo'
+  };
+  const label = typeLabels[itemType] || 'un elemento';
+
+  return sendMail(
+    to,
+    `${ownerName} compartió ${label} contigo en Geck`,
+    `
+    <!DOCTYPE html>
+    <html lang="es">
+    <head><meta charset="UTF-8"></head>
+    <body style="margin:0; padding:0; background-color:#f4f4f8; font-family: 'Segoe UI', Arial, sans-serif;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f8; padding: 40px 20px;">
+        <tr><td align="center">
+          <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff; border-radius:16px; overflow:hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.08);">
+            <tr>
+              <td style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a78bfa 100%); padding: 40px; text-align: center;">
+                <h1 style="margin:0; color:#ffffff; font-size:32px; font-weight:800;">Geck</h1>
+                <p style="margin:8px 0 0; color:rgba(255,255,255,0.85); font-size:14px; letter-spacing:2px; text-transform:uppercase;">Elemento compartido</p>
+              </td>
+            </tr>
+            <tr>
+              <td align="center" style="padding: 32px 40px 0;">
+                <div style="display:inline-block; background: linear-gradient(135deg, #ede9fe, #ddd6fe); border-radius:50%; width:72px; height:72px; line-height:72px; text-align:center; font-size:32px;">
+                  📁
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 24px 48px 32px; text-align:center;">
+                <h2 style="color:#1e1b4b; font-size:22px; font-weight:700; margin:0 0 12px;">¡Te compartieron algo!</h2>
+                <p style="color:#6b7280; font-size:15px; line-height:1.7; margin:0;">
+                  <strong style="color:#374151;">${ownerName}</strong> compartió ${label} contigo:
+                </p>
+                <div style="margin: 20px 0; background: linear-gradient(135deg, #ede9fe, #f0eeff); border: 1.5px solid #c4b5fd; border-radius:12px; padding:16px 24px;">
+                  <p style="margin:0; color:#5b21b6; font-size:16px; font-weight:700;">📄 ${itemName}</p>
+                </div>
+                <p style="color:#9ca3af; font-size:13px;">Inicia sesión en Geck para verlo en tu escritorio.</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="background: linear-gradient(135deg, #faf5ff, #ede9fe); padding:20px 40px; text-align:center; border-top: 1px solid #f0eeff;">
+                <p style="margin:0; color:#7c3aed; font-size:13px; font-weight:600;">El equipo de Geck 💜</p>
+              </td>
+            </tr>
+          </table>
+        </td></tr>
+      </table>
+    </body>
+    </html>
+    `
+  );
+};
