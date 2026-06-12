@@ -27,11 +27,11 @@ cloudinary.config({
 
 app.use(express.json());
 app.use(cors());
-const fileUploadMiddleware = fileUpload({
+app.use(fileUpload({
   useTempFiles: true,
   tempFileDir: '/tmp/',
   createParentPath: true
-});
+}));
 
 app.use((req, res, next) => {
   if (req.originalUrl.includes('/api/users/preferences')) {
