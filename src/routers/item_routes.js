@@ -9,7 +9,7 @@ router.use(verifyAuth);
 
 router.get('/desktop', getDesktop);
 router.post('/create', createItem);
-router.post('/upload', upload.single('archivo'), uploadFileItem);
+router.post('/upload', uploadFileItem);
 router.get('/get/:id', getItemById);
 router.patch('/update/:id', updateItem);
 router.patch('/positions/bulk', updateBulkPositions);

@@ -119,22 +119,21 @@ export const createItem = async (req, res) => {
 export const uploadFileItem = async (req, res) => {
   try {
     const userId = req.user._id;
-    const { parentId, x, y, workspaceId } = req.body;
-
-    if (!req.file) {
+    const { parentId, x, y, workspaceId } = req.body || {};
+    
+    if (!req.files || !req.files.archivo) {
       return res.status(400).json({ ok: false, msg: 'No se ha seleccionado ningún archivo.' });
     }
 
-    const file = req.file;
-
-    const cloudData = await uploadFileToCloudinary(file.path, 'VirtualDesk_Docs');
+    const file = req.files.archivo; 
+    const cloudData = await uploadFileToCloudinary(file.tempFilePath, 'VirtualDesk_Docs');
 
     const newItem = new Item({
       userId,
       type: 'file',
-      name: file.originalname,
+      name: file.name, 
       url: cloudData.secure_url,
-      fileFormat: cloudData.format || file.originalname.split('.').pop(),
+      fileFormat: cloudData.format || file.name.split('.').pop(),
       publicId: cloudData.public_id,
       parentId: (parentId && parentId !== 'null') ? parentId : null,
       position: { x: Number(x) || 100, y: Number(y) || 100 },
