@@ -49,19 +49,31 @@ export const executeCode = async (req, res) => {
     } else if (langStr === 'c') {
       filePath = path.join(execDir, 'main.c');
       await fs.writeFile(filePath, code);
-
       const outPath = path.join(execDir, isWindows ? 'main.exe' : 'main');
-
       command = `gcc "${filePath}" -o "${outPath}" && "${outPath}"`;
     } else {
-      await fs.remove(execDir);
+      activeExecutions--; // Pequeña corrección extra: restamos si el lenguaje falla
+      await fs.remove(execDir).catch(() => {});
       return res.status(400).json({
         ok: false,
-        msg: 'Lenguaje no soportado por el servidor. Usa JS, Python o C++.'
+        msg: 'Lenguaje no soportado por el servidor. Usa JS, Python, C++ o C.'
       });
     }
 
-    exec(command, { timeout: 8000 }, async (error, stdout, stderr) => {
+    // --- PROTECCIÓN DE VARIABLES DE ENTORNO ---
+    // Creamos un entorno (env) seguro que solo tiene variables del sistema operativo
+    // Se excluyen por completo process.env.MONGO_URI, JWT_SECRET, PORT, etc.
+    const safeEnv = {
+      PATH: process.env.PATH, // Indispensable para que sepa dónde está node, python o g++
+      ...(isWindows && { SystemRoot: process.env.SystemRoot, TEMP: process.env.TEMP, TMP: process.env.TMP })
+    };
+
+    // Pasamos options como { timeout, env, cwd } al exec nativo
+    exec(command, { 
+      timeout: 8000, 
+      env: safeEnv, // <-- Aquí inyectamos el entorno vacío de secretos
+      cwd: execDir  // <-- Ejecuta dentro de su propia carpeta, no en la raíz de tu proyecto
+    }, async (error, stdout, stderr) => {
       activeExecutions--;
       await fs.remove(execDir).catch(() => {});
 

@@ -34,7 +34,10 @@ app.use(fileUpload({
 }));
 
 app.use((req, res, next) => {
-  if (req.originalUrl.includes('/api/users/preferences')) {
+  if (
+    req.originalUrl.includes('/api/users/preferences') ||
+    req.originalUrl.includes('/api/items/upload')
+  ) {
     return next(); 
   }
   return fileUploadMiddleware(req, res, next);
