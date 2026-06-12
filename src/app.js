@@ -27,21 +27,17 @@ cloudinary.config({
 
 app.use(express.json());
 app.use(cors());
+const fileUploadMiddleware = fileUpload({
+  useTempFiles: true,
+  tempFileDir: '/tmp/',
+  createParentPath: true
+});
+
 app.use(fileUpload({
   useTempFiles: true,
   tempFileDir: '/tmp/',
   createParentPath: true
 }));
-
-app.use((req, res, next) => {
-  if (
-    req.originalUrl.includes('/api/users/preferences') ||
-    req.originalUrl.includes('/api/items/upload')
-  ) {
-    return next(); 
-  }
-  return fileUploadMiddleware(req, res, next);
-});
 
 app.get('/', (req, res) => res.send('Server Geck-core on'));
 
@@ -59,6 +55,15 @@ app.use('/api/chat', chatRoutes);
 app.use((req, res) => {
   console.log(`404 - Ruta no encontrada: ${req.method} ${req.originalUrl}`);
   res.status(404).json({ msg: 'Endpoint no encontrado - 404' });
+});
+
+app.use((err, req, res, next) => {
+  console.error('Error Crítico Interceptado por el Servidor:', err);
+  res.status(500).json({ 
+    ok: false, 
+    msg: 'Hubo un problema procesando la petición antes de llegar a la ruta.',
+    error: err.message
+  });
 });
 
 export default app;
