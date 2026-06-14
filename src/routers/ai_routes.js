@@ -1,13 +1,25 @@
 import { Router } from 'express';
-import { improveText, chatWithAssistant, generateWallpaper, semanticSearch } from '../controllers/ai_controller.js';
-import { verifyAuth } from '../middlewares/auth.js';
+import { 
+  registerUser, 
+  loginUser, 
+  confirmEmail, 
+  forgotPassword, 
+  verifyPasswordToken, 
+  resetPassword,
+  googleLogin,        
+  googleCallback      
+} from '../controllers/auth_controller.js';
 
 const router = Router();
-router.use(verifyAuth);
 
-router.post('/chat', chatWithAssistant);
-router.post('/generate-wallpaper', generateWallpaper);
-router.post('/semantic-search', semanticSearch);
-router.post('/improve-text', improveText);
+router.post('/register', registerUser);
+router.get('/confirm/:token', confirmEmail);
+router.post('/forgot-password', forgotPassword);
+router.get('/forgot-password/:token', verifyPasswordToken);
+router.post('/reset-password/:token', resetPassword);
+router.post('/login', loginUser);
+
+router.get('/google', googleLogin);
+router.get('/google/callback', googleCallback);
 
 export default router;

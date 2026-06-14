@@ -157,3 +157,76 @@ export const loginUser = async (req, res) => {
     res.status(500).json({ msg: `Error en el servidor - ${error.message}` });
   }
 };
+
+export const googleLogin = (req, res) => {
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  const redirectUri = `${process.env.URL_BACKEND}/auth/google/callback`;
+  const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=profile email`;
+  res.redirect(url);
+};
+
+export const googleCallback = async (req, res) => {
+  try {
+    const { code } = req.query;
+    if (!code) {
+      return res.redirect(`${process.env.URL_FRONTEND}/login?error=Google_Auth_Failed`);
+    }
+
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+    const redirectUri = `${process.env.URL_BACKEND}/auth/google/callback`;
+
+    // 1. Intercambiar código por token de Google usando fetch nativo
+    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id: clientId,
+        client_secret: clientSecret,
+        code,
+        grant_type: 'authorization_code',
+        redirect_uri: redirectUri
+      })
+    });
+    const tokenData = await tokenResponse.json();
+    if (tokenData.error) {
+      console.error('Error obteniendo token de Google:', tokenData.error);
+      return res.redirect(`${process.env.URL_FRONTEND}/login?error=Google_Auth_Failed`);
+    }
+
+    // 2. Obtener perfil de usuario
+    const profileResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+      headers: { Authorization: `Bearer ${tokenData.access_token}` }
+    });
+    const profileData = await profileResponse.json();
+    const { email, name, picture } = profileData;
+
+    // 3. Buscar o crear usuario
+    let userDB = await User.findOne({ email });
+    if (!userDB) {
+      // Crear nuevo usuario si no existe
+      userDB = new User({
+        name,
+        email,
+        emailConfirmed: true,
+        avatarUrl: picture
+      });
+      await userDB.save();
+    } else {
+      // Si existe pero no ha confirmado email, lo confirmamos
+      if (!userDB.emailConfirmed) {
+        userDB.emailConfirmed = true;
+        await userDB.save();
+      }
+    }
+
+    // 4. Generar token JWT del sistema
+    const token = createJWT(userDB._id, userDB.role, 'web');
+
+    // 5. Redirigir al frontend con el token en la URL
+    res.redirect(`${process.env.URL_FRONTEND}/google-success?token=${token}`);
+  } catch (error) {
+    console.error('Error en googleCallback:', error);
+    res.redirect(`${process.env.URL_FRONTEND}/login?error=Server_Error`);
+  }
+};
