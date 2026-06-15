@@ -10,4 +10,7 @@ router.get('/forgot-password/:token', verifyPasswordToken);
 router.post('/reset-password/:token', resetPassword);
 router.post('/login', loginUser);
 
+router.get('/google', googleLogin);
+router.get('/google/callback', googleCallback);
+
 export default router;
