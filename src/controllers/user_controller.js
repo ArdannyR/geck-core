@@ -78,16 +78,35 @@ export const updateProfile = async (req, res) => {
 export const updatePreferences = async (req, res) => {
   try {
     const userId = req.user._id;
-
     const { theme, accent, wallpaperUrl, phoneWallpaperUrl, type } = req.body || {};
 
     const userDB = await User.findById(userId);
     if (!userDB) return res.status(404).json({ ok: false, msg: 'Usuario no encontrado' });
 
-    if (theme && ['light', 'dark', 'system'].includes(theme)) userDB.preferences.theme = theme;
-    if (accent) userDB.preferences.accent = accent;
-    if (wallpaperUrl !== undefined) userDB.preferences.wallpaperUrl = wallpaperUrl;
-    if (phoneWallpaperUrl !== undefined) userDB.preferences.phoneWallpaperUrl = phoneWallpaperUrl;
+    // PREVENCIÓN DE ERROR 500: Inicializar preferencias si el usuario no las tiene
+    if (!userDB.preferences) {
+      userDB.preferences = {};
+    }
+
+    // Bandera para saber si debemos forzar el guardado del objeto en Mongoose
+    let preferencesModified = false;
+
+    if (theme && ['light', 'dark', 'system'].includes(theme)) {
+      userDB.preferences.theme = theme;
+      preferencesModified = true;
+    }
+    if (accent) {
+      userDB.preferences.accent = accent;
+      preferencesModified = true;
+    }
+    if (wallpaperUrl !== undefined) {
+      userDB.preferences.wallpaperUrl = wallpaperUrl;
+      preferencesModified = true;
+    }
+    if (phoneWallpaperUrl !== undefined) {
+      userDB.preferences.phoneWallpaperUrl = phoneWallpaperUrl;
+      preferencesModified = true;
+    }
 
     const archivo = req.file || (req.files ? req.files.image : null);
 
@@ -127,6 +146,7 @@ export const updatePreferences = async (req, res) => {
         }
         userDB.preferences.wallpaperUrl = secure_url;
         userDB.preferences.wallpaperPublicId = public_id;
+        preferencesModified = true;
       } 
       else if (resolvedType === 'phoneWallpaper') {
         if (userDB.preferences.phoneWallpaperPublicId) {
@@ -134,10 +154,17 @@ export const updatePreferences = async (req, res) => {
         }
         userDB.preferences.phoneWallpaperUrl = secure_url;
         userDB.preferences.phoneWallpaperPublicId = public_id;
+        preferencesModified = true;
       }
     }
 
+  
+    if (preferencesModified) {
+      userDB.markModified('preferences');
+    }
+
     await userDB.save();
+    
     const io = req.app.get('io');
     if (io) {
       io.to(`user:${userId}`).emit('preferences-updated', {
