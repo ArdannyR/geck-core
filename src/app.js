@@ -27,16 +27,12 @@ cloudinary.config({
 
 app.use(express.json());
 app.use(cors());
-const fileUploadMiddleware = fileUpload({
-  useTempFiles: true,
-  tempFileDir: '/tmp/',
-  createParentPath: true
-});
 
 app.use(fileUpload({
   useTempFiles: true,
   tempFileDir: '/tmp/',
-  createParentPath: true
+  createParentPath: true,
+  parseNested: true  
 }));
 
 app.get('/', (req, res) => res.send('Server Geck-core on'));

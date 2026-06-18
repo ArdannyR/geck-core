@@ -77,6 +77,11 @@ export const updateProfile = async (req, res) => {
 
 export const updatePreferences = async (req, res) => {
   try {
+    console.log('=== DEBUG ===');
+    console.log('req.body:', req.body);
+    console.log('req.files:', req.files);
+    console.log('type raw:', req.body?.type);
+    console.log('=============');
     const userId = req.user._id;
 
     // Con express-fileupload los campos de texto llegan en req.body normalmente
