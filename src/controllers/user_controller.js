@@ -76,28 +76,18 @@ export const updateProfile = async (req, res) => {
 };
 
 export const updatePreferences = async (req, res) => {
-  console.log('\n--- 🐛 INICIO DEBUG UPDATE PREFERENCES ---');
-  console.log('1. Content-Type recibido:', req.headers['content-type']);
-  console.log('2. req.body puro:', req.body);
-  console.log('3. req.file (Multer):', req.file ? `Archivo recibido: ${req.file.originalname}` : 'UNDEFINED');
-  
   try {
     const userId = req.user._id;
-    console.log('4. ID de Usuario autenticado:', userId);
 
+    // Con express-fileupload los campos de texto llegan en req.body normalmente
     const { theme, accent, wallpaperUrl, phoneWallpaperUrl, type } = req.body || {};
-    console.log('5. Datos extraídos:', { theme, accent, type });
 
     const userDB = await User.findById(userId);
     if (!userDB) {
-      console.log('❌ ERROR: Usuario no encontrado en la BD');
       return res.status(404).json({ ok: false, msg: 'Usuario no encontrado' });
     }
 
-    if (!userDB.preferences) {
-      console.log('⚠️ INFO: El usuario no tenía preferencias previas. Inicializando...');
-      userDB.preferences = {};
-    }
+    if (!userDB.preferences) userDB.preferences = {};
 
     let preferencesModified = false;
 
@@ -118,35 +108,53 @@ export const updatePreferences = async (req, res) => {
       preferencesModified = true;
     }
 
-    console.log('6. Preferencias modificadas en memoria?:', preferencesModified);
-
-    const archivo = req.file || (req.files ? req.files.image : null);
+    // ✅ Con express-fileupload el archivo viene en req.files
+    const archivo = req.files?.image;
 
     if (archivo) {
-      console.log('7. Procesando archivo tipo:', type);
-      if (!type || !['avatar', 'desktopWallpaper', 'phoneWallpaper', 'wallpaper'].includes(type)) {
-        console.log('❌ ERROR: Validación de "type" fallida. Valor recibido:', type);
-        return res.status(400).json({ 
-          ok: false, 
-          msg: 'Para subir una imagen, "type" debe ser válido' 
+      if (!type || !['avatar', 'desktopWallpaper', 'phoneWallpaper'].includes(type)) {
+        return res.status(400).json({
+          ok: false,
+          msg: 'Para subir imagen, "type" debe ser: avatar, desktopWallpaper o phoneWallpaper'
         });
       }
 
-      // ... (aquí va tu lógica de Cloudinary intacta)
-      console.log('8. Subiendo a Cloudinary...');
-      // Simulamos que pasa Cloudinary para el log
-      console.log('✅ Cloudinary OK (o omitido si no hay configuración)');
+      // Determinar folder y lógica según el tipo
+      let folder = 'VirtualDesk_Wallpapers';
+      if (type === 'avatar') folder = 'VirtualDesk_Avatars';
+
+      // Eliminar imagen anterior de Cloudinary antes de subir la nueva
+      if (type === 'avatar' && userDB.avatarPublicId) {
+        await cloudinary.uploader.destroy(userDB.avatarPublicId).catch(() => {});
+      } else if (type === 'desktopWallpaper' && userDB.preferences.wallpaperPublicId) {
+        await cloudinary.uploader.destroy(userDB.preferences.wallpaperPublicId).catch(() => {});
+      } else if (type === 'phoneWallpaper' && userDB.preferences.phoneWallpaperPublicId) {
+        await cloudinary.uploader.destroy(userDB.preferences.phoneWallpaperPublicId).catch(() => {});
+      }
+
+      // Subir a Cloudinary usando el tempFilePath que provee express-fileupload
+      const { secure_url, public_id } = await uploadFileToCloudinary(archivo.tempFilePath, folder);
+
+      // Guardar URL y publicId según el tipo
+      if (type === 'avatar') {
+        userDB.avatarUrl = secure_url;
+        userDB.avatarPublicId = public_id;
+      } else if (type === 'desktopWallpaper') {
+        userDB.preferences.wallpaperUrl = secure_url;
+        userDB.preferences.wallpaperPublicId = public_id;
+      } else if (type === 'phoneWallpaper') {
+        userDB.preferences.phoneWallpaperUrl = secure_url;
+        userDB.preferences.phoneWallpaperPublicId = public_id;
+      }
+
+      preferencesModified = true;
     }
 
     if (preferencesModified) {
-      console.log('9. Marcando "preferences" como modificadas para Mongoose');
       userDB.markModified('preferences');
     }
 
-    console.log('10. Guardando en Base de Datos...');
     await userDB.save();
-    console.log('✅ GUARDADO EXITOSO');
-    console.log('--- FIN DEBUG ---\n');
 
     return res.status(200).json({
       ok: true,
@@ -156,7 +164,7 @@ export const updatePreferences = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ ERROR FATAL en updatePreferences:', error);
+    console.error('❌ ERROR en updatePreferences:', error);
     return res.status(500).json({ ok: false, msg: `Error en el servidor - ${error.message}` });
   }
 };
