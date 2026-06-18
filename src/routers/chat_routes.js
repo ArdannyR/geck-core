@@ -1,10 +1,8 @@
 import { Router } from 'express';
-import multer from 'multer';
 import { verifyAuth } from '../middlewares/auth.js';
 import { accessChat, createGroupChat, fetchChats, sendMessage, fetchMessages, editMessage, deleteMessage, sendAudioMessage, sendFileMessage, markChatAsRead, deleteChat, leaveGroupChat } from '../controllers/chat_controller.js';
 
 const router = Router();
-const upload = multer({ dest: 'uploads/' });
 router.use(verifyAuth);
 
 router.post('/access', accessChat);

@@ -1,9 +1,7 @@
 import { Router } from 'express';
-import multer from 'multer';
 import { getDesktop, createItem, uploadFileItem, getItemById, updateBulkPositions, updateItem, deleteItem, getAllItems } from '../controllers/item_controller.js';
 import { verifyAuth } from '../middlewares/auth.js';
 
-const upload = multer({ dest: 'uploads/' });
 const router = Router();
 router.use(verifyAuth);
 

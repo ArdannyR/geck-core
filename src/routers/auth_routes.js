@@ -9,7 +9,7 @@ router.post('/forgot-password', forgotPassword);
 router.get('/forgot-password/:token', verifyPasswordToken);
 router.post('/reset-password/:token', resetPassword);
 router.post('/login', loginUser);
-
+// Enpoints fuera de tesis 
 router.get('/google', googleLogin);
 router.get('/google/callback', googleCallback);
 
