@@ -84,8 +84,8 @@ export const updatePreferences = async (req, res) => {
     console.log('=============');
     const userId = req.user._id;
 
-    // Con express-fileupload los campos de texto llegan en req.body normalmente
-    const { theme, accent, wallpaperUrl, phoneWallpaperUrl, type } = req.body || {};
+    const { theme, accent, wallpaperUrl, phoneWallpaperUrl, type: rawType } = req.body || {};
+    const type = rawType?.trim();
 
     const userDB = await User.findById(userId);
     if (!userDB) {
