@@ -77,11 +77,6 @@ export const updateProfile = async (req, res) => {
 
 export const updatePreferences = async (req, res) => {
   try {
-    console.log('=== DEBUG ===');
-    console.log('req.body:', req.body);
-    console.log('req.files:', req.files);
-    console.log('type raw:', req.body?.type);
-    console.log('=============');
     const userId = req.user._id;
 
     const { theme, accent, wallpaperUrl, phoneWallpaperUrl, type: rawType } = req.body || {};
@@ -113,7 +108,6 @@ export const updatePreferences = async (req, res) => {
       preferencesModified = true;
     }
 
-    // ✅ Con express-fileupload el archivo viene en req.files
     const archivo = req.files?.image;
 
     if (archivo) {
@@ -124,11 +118,9 @@ export const updatePreferences = async (req, res) => {
         });
       }
 
-      // Determinar folder y lógica según el tipo
       let folder = 'VirtualDesk_Wallpapers';
       if (type === 'avatar') folder = 'VirtualDesk_Avatars';
 
-      // Eliminar imagen anterior de Cloudinary antes de subir la nueva
       if (type === 'avatar' && userDB.avatarPublicId) {
         await cloudinary.uploader.destroy(userDB.avatarPublicId).catch(() => {});
       } else if (type === 'desktopWallpaper' && userDB.preferences.wallpaperPublicId) {
@@ -137,10 +129,8 @@ export const updatePreferences = async (req, res) => {
         await cloudinary.uploader.destroy(userDB.preferences.phoneWallpaperPublicId).catch(() => {});
       }
 
-      // Subir a Cloudinary usando el tempFilePath que provee express-fileupload
       const { secure_url, public_id } = await uploadFileToCloudinary(archivo.tempFilePath, folder);
 
-      // Guardar URL y publicId según el tipo
       if (type === 'avatar') {
         userDB.avatarUrl = secure_url;
         userDB.avatarPublicId = public_id;
