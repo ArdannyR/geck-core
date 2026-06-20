@@ -132,8 +132,8 @@ export const acceptInvite = async (req, res) => {
     }
 
     const hoursDiff = (Date.now() - new Date(invite.createdAt).getTime()) / (1000 * 60 * 60);
-    if (hoursDiff > 48) {
-      return res.status(400).json({ ok: false, msg: 'La invitación ha expirado (48h)' });
+    if (hoursDiff > 12) {
+      return res.status(400).json({ ok: false, msg: 'La invitación ha expirado (12h)' });
     }
 
     const invitedUser = await User.findOne({ email: invite.email });
